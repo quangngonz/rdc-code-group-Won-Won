@@ -132,7 +132,7 @@ int main(void) {
 			// Get and display controller data
 			ControllerParam controller;
 			if (Bluetooth_GetController(&controller)) {
-				tft_prints(0, 5, "Controller Data:");
+				tft_prints(0, 3, "Controller Data:");
 
 				// Display left stick
 				tft_prints(0, 4, "LX:%+4d LY:%+4d", controller.left_stick_x,

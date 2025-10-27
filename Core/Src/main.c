@@ -153,8 +153,10 @@ int main(void) {
 				tft_prints(0, 6, "LT:%3d RT:%3d", controller.left_trigger,
 						controller.right_trigger);
 				// Display button states (A, B, X, Y, LB, RB)
-				tft_prints(0, 7, "A%dB%dX%dY%d LB%dRB%d", controller.a,
-						controller.b, controller.x, controller.y, controller.lb,
+				tft_prints(0, 7, "A%dB%dX%dY%d", controller.a,
+						controller.b, controller.x, controller.y);
+
+				tft_prints(0, 8, "LB%dRB%d", controller.lb,
 						controller.rb);
 			} else {
 				// No controller data available

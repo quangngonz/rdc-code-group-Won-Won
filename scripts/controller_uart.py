@@ -5,7 +5,7 @@ import time
 import sys
 
 # ================= CONFIG =================
-BT_PORT = "/dev/cu.usbserial-1140"          # UART Port
+BT_PORT = "/dev/cu.WonWon"          # UART Port
 BT_BAUD = 115200
 UPDATE_HZ = 50             # Update rate in Hz
 # ==========================================

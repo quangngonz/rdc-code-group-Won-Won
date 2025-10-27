@@ -28,6 +28,69 @@ LX LY RX RY LT RT A|B|X|Y|LB|RB|BACK|START|XBOX DPAD_UP DN LF RT CON\n
 +050 -030 +000 +000 000 000 0000000000 0000 1\n
 ```
 
+## PC-side controller script (scripts/controller_uart.py)
+
+The repository includes a small Python helper, `scripts/controller_uart.py`, which reads a connected game controller via pygame and streams formatted messages over a serial/UART (Bluetooth) link. The script's behavior clarifies how controller hardware maps into the ASCII protocol.
+
+Key points (exact behavior from the script):
+
+- Configuration:
+
+  - Default serial port: `BT_PORT = "COM5"`
+  - Baud rate: `BT_BAUD = 115200`.
+  - Update rate: `UPDATE_HZ = 50` (streaming loop delay = 1 / UPDATE_HZ).
+  - Run with `--test` to avoid opening the serial port and only print output locally.
+  - Use `--verbose` to print the formatted message alongside the pretty table.
+
+- Joystick → protocol mapping (as implemented):
+
+  - Axes:
+    - Left stick X = axis 0 → `LX` (mapped by map_axis: value \* 100 → integer in [-100,100]).
+    - Left stick Y = axis 1 → `LY` (mapped and inverted in software: `ly = -map_axis(axis1)`).
+    - Right stick X = axis 2 → `RX` (map_axis).
+    - Right stick Y = axis 3 → `RY` (mapped and inverted: `ry = -map_axis(axis3)`).
+  - Triggers:
+    - Left trigger = axis 5 → `LT` (mapped by map_trigger: value \* 100 and rounded).
+    - Right trigger = axis 4 → `RT` (mapped by map_trigger).
+    - Note: the script's `map_trigger` multiplies the raw axis value by 100. Depending on the controller/OS, trigger axes may be reported in [0,1] or [-1,1]; the script expects the raw axis and directly scales it.
+  - Buttons (indices used by the script):
+    - `A` = button 0
+    - `B` = button 1
+    - `X` = button 3
+    - `Y` = button 4
+    - `LB` = button 6
+    - `RB` = button 7
+    - `BACK` = button 10
+    - `START` = button 11
+    - `XBOX` = button 12
+  - D-Pad (hat): `joy.get_hat(0)` returns a pair `(x, y)`; mapping in the script:
+    - `DPAD_UP` = 1 if y == 1 else 0
+    - `DPAD_DN` = 1 if y == -1 else 0
+    - `DPAD_LF` = 1 if x == -1 else 0
+    - `DPAD_RT` = 1 if x == 1 else 0
+
+- Formatted message (exact string produced):
+  - The script builds the message using Python formatting; the structure is:
+
+```
+{LX:+04d} {LY:+04d} {RX:+04d} {RY:+04d} {LT:03d} {RT:03d} {A}{B}{X}{Y}{LB}{RB}{BACK}{START}{XBOX} {DPAD_UP} {DPAD_DN} {DPAD_LF} {DPAD_RT} 1\n
+```
+
+    - Notes:
+        - Signed joystick values are formatted with sign and zero-padded to width 4 (e.g. `+050`, `-030`).
+        - Triggers are zero-padded to width 3 (e.g. `000`, `100`).
+        - The contiguous button block is emitted as digits without separators (e.g. `010100001`).
+        - The final `1` in the message is a connection flag sent by the script.
+
+- How to run (host PC):
+  - Install dependencies: `pip install -r scripts/requirements.txt` (the script uses `pygame` and `pyserial`).
+  - Example run (on Windows with default port):
+    - `python scripts/controller_uart.py`
+  - For testing without a serial device:
+    - `python scripts/controller_uart.py --test --verbose`
+
+Including this section ensures the firmware spec matches what the PC-side helper actually sends and documents exact button/axis indices for debugging.
+
 ### Protocol Fields
 
 | Field     | Length (chars) | Range        | Description                                |

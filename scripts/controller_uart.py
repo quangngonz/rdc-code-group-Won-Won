@@ -5,7 +5,7 @@ import time
 import sys
 
 # ================= CONFIG =================
-BT_PORT = "COM5"          # UART Port
+BT_PORT = "/dev/cu.usbserial-1140"          # UART Port
 BT_BAUD = 115200
 UPDATE_HZ = 50             # Update rate in Hz
 # ==========================================
@@ -96,6 +96,8 @@ def main():
     delay = 1.0 / UPDATE_HZ
     print("Streaming controller data... Press Ctrl+C to stop.")
 
+    input("Press Enter to begin...")
+
     try:
         while True:
             pygame.event.pump()
@@ -132,16 +134,21 @@ def main():
                                  (a, b, x, y, lb, rb, back, start, xbox),
                                  (dup, ddn, dlf, drt))
 
-            if test_mode or verbose:
+            if test_mode:
                 print_controller_output(
                     lx, ly, rx, ry, lt, rt,
                     (a, b, x, y, lb, rb, back, start, xbox),
                     (dup, ddn, dlf, drt),
                     msg, verbose
                 )
-
             else:
                 bt.write(msg.encode("utf-8"))
+                print_controller_output(
+                    lx, ly, rx, ry, lt, rt,
+                    (a, b, x, y, lb, rb, back, start, xbox),
+                    (dup, ddn, dlf, drt),
+                    msg, verbose
+                )
 
             time.sleep(delay)
 

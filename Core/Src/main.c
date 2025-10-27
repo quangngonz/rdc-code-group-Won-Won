@@ -50,6 +50,8 @@
 
 /* USER CODE BEGIN PV */
 
+uint32_t current_time = 0;
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -117,29 +119,36 @@ int main(void) {
 	// Bluetooth Comm Init
 	Bluetooth_Init();
 	Bluetooth_StartReceive();
+	char msg[] = "Hello, World!";
 
 	/* USER CODE END 2 */
 
 	/* Infinite loop */
 	/* USER CODE BEGIN WHILE */
 	while (1) {
-		uint32_t current_time = HAL_GetTick();
+		current_time = HAL_GetTick();
+
+//		HAL_UART_Transmit(&huart1, (uint8_t*) msg, strlen(msg), HAL_MAX_DELAY);
 
 		if (tft_update(50) == 0) {
 			tft_prints(0, 0, "Group Won-Won");
-			tft_prints(0, 1, "Time: %lu ms", current_time);
+			tft_prints(0, 1, "Time: %d ms", current_time);
 
 			// Get and display controller data
 			ControllerParam controller;
 			if (Bluetooth_GetController(&controller)) {
-				tft_prints(0, 3, "Controller Data:");
+				tft_prints(0, 3, "Controller:");
 
 				// Display left stick
-				tft_prints(0, 4, "LX:%+4d LY:%+4d", controller.left_stick_x,
-						controller.left_stick_y);
+				char buf_l[32];
+				sprintf(buf_l, "LX:%+04d LY:%+04d", controller.left_stick_x, controller.left_stick_y);
+				tft_prints(0, 4, buf_l);
+
 				// Display right stick
-				tft_prints(0, 5, "RX:%+4d RY:%+4d", controller.right_stick_x,
-						controller.right_stick_y);
+				char buf_r[32];
+				sprintf(buf_r, "RX:%+4d RY:%+4d", controller.right_stick_x, controller.right_stick_y);
+				tft_prints(0, 5, buf_r);
+
 				// Display triggers
 				tft_prints(0, 6, "LT:%3d RT:%3d", controller.left_trigger,
 						controller.right_trigger);

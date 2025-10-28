@@ -20,6 +20,7 @@
 
 /* Includes ------------------------------------------------------------------*/
 #include "robot/bluetooth.h"
+#include "robot/control.h"
 #include "usart.h"
 #include "main.h"
 #include <string.h>
@@ -82,14 +83,15 @@ void Bluetooth_StopReceive(void) {
 
 /**
  * @brief Get the latest controller data
+ * @note Does NOT clear the updated flag - allows multiple readers
  */
 bool Bluetooth_GetController(ControllerParam* controller) {
     if (controller == NULL || !current_controller.updated) {
         return false;
     }
 
+    // Copy data but DON'T clear flag - multiple functions can read same data
     *controller = current_controller;
-    current_controller.updated = false;
 
     return true;
 }
@@ -128,10 +130,10 @@ bool Bluetooth_SendString(const char* message) {
         len = BT_TX_BUFFER_SIZE - 1;
     }
 
-    HAL_StatusTypeDef status = HAL_UART_Transmit(&BT_UART_HANDLE,
-                                                   (uint8_t*)message,
-                                                   len,
-                                                   100);
+    // Use non-blocking interrupt-based transmission
+    HAL_StatusTypeDef status = HAL_UART_Transmit_IT(&BT_UART_HANDLE,
+                                                      (uint8_t*)message,
+                                                      len);
 
     return (status == HAL_OK);
 }
@@ -203,8 +205,13 @@ static void Bluetooth_ParseCommand(const char* cmd_string) {
 
     // Check for emergency stop command
     if (strcmp(cmd_string, "ESTOP") == 0) {
-        current_command.type = BT_CMD_EMERGENCY_STOP;
-        command_available = true;
+        // Toggle ESTOP: if already in ESTOP mode, release it; otherwise activate it
+        if (Control_GetMode() == CONTROL_MODE_EMERGENCY_STOP) {
+            Control_ReleaseEmergencyStop();
+        } else {
+            current_command.type = BT_CMD_EMERGENCY_STOP;
+            command_available = true;
+        }
         return;
     }
 
@@ -239,6 +246,9 @@ static bool Bluetooth_ParseControllerData(const char* data_string) {
     );
 
     if (parsed == 20) {
+        // Clear old data flag first
+        current_controller.updated = false;
+        
         // Clamp and assign stick values
         current_controller.left_stick_x = Bluetooth_ClampStick(lx);
         current_controller.left_stick_y = Bluetooth_ClampStick(ly);
@@ -268,6 +278,8 @@ static bool Bluetooth_ParseControllerData(const char* data_string) {
 
         // Assign connection status
         current_controller.connected = (con != 0) ? 1 : 0;
+        
+        // Set flag LAST to indicate fresh data
         current_controller.updated = true;
 
         return true;

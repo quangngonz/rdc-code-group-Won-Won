@@ -92,8 +92,9 @@ def main():
         try:
             # bt = serial.Serial(BT_PORT, BT_BAUD, timeout=1)
             # print(f"Connected to Bluetooth at {BT_PORT} ({BT_BAUD} baud)")
-            
-            bt = socket.socket(socket.AF_BLUETOOTH, socket.SOCK_STREAM, socket.BTPROTO_RFCOMM)
+
+            bt = socket.socket(socket.AF_BLUETOOTH,
+                               socket.SOCK_STREAM, socket.BTPROTO_RFCOMM)
 
             bt.connect(('98:d3:02:96:be:1b', 1))
 

@@ -27,9 +27,8 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "lcd/lcd.h"
+#include "robot/control.h"
 #include "robot/bluetooth.h"
-#include "robot/can_protocol.h"
-
 
 /* USER CODE END Includes */
 
@@ -121,13 +120,8 @@ int main(void) {
 	// CAN INIT
 	CAN_Protocol_Init();
 
-	// Bluetooth Comm INIT
-	Bluetooth_Init();
-	Bluetooth_StartReceive();
-
-
-	// Drivebase INIT
-	DriveBase_Init();
+	Control_Init();
+	Control_SetMode(CONTROL_MODE_MANUAL);
 
 	char msg[] = "Hello, World!";
 	HAL_UART_Transmit(&huart1, (uint8_t*) msg, strlen(msg), HAL_MAX_DELAY);
@@ -139,10 +133,12 @@ int main(void) {
 	while (1) {
 		current_time = HAL_GetTick();
 
+		// Control_Update() already calls Bluetooth_Update()
+		Control_Update();
+
 		// Update CAN bus communication
 		CAN_Protocol_Update();
-
-
+		
 		if (tft_update(50) == 0) {
 			tft_prints(0, 0, "Group Won-Won");
 			tft_prints(0, 1, "Time: %d ms", current_time);
@@ -154,28 +150,28 @@ int main(void) {
 
 				// Display left stick
 				char buf_l[40];
-				sprintf(buf_l, "LX:%+04d LY:%+04d", controller.left_stick_x, controller.left_stick_y);
+				sprintf(buf_l, "LX:%+04d LY:%+04d", controller.left_stick_x,
+						controller.left_stick_y);
 				tft_prints(0, 4, buf_l);
 
 				// Display right stick
 				char buf_r[40];
-				sprintf(buf_r, "RX:%+4d RY:%+4d", controller.right_stick_x, controller.right_stick_y);
+				sprintf(buf_r, "RX:%+4d RY:%+4d", controller.right_stick_x,
+						controller.right_stick_y);
 				tft_prints(0, 5, buf_r);
 
 				// Display triggers
 				tft_prints(0, 6, "LT:%3d RT:%3d", controller.left_trigger,
 						controller.right_trigger);
 				// Display button states (A, B, X, Y, LB, RB)
-				tft_prints(0, 7, "A%dB%dX%dY%d", controller.a,
-						controller.b, controller.x, controller.y);
+				tft_prints(0, 7, "A%dB%dX%dY%d", controller.a, controller.b,
+						controller.x, controller.y);
 
-				tft_prints(0, 8, "LB%dRB%d", controller.lb,
-						controller.rb);
+				tft_prints(0, 8, "LB%dRB%d", controller.lb, controller.rb);
 			} else {
 				// No controller data available
 				tft_prints(0, 4, "No controller");
 				tft_prints(0, 5, "data");
-
 
 			}
 		}

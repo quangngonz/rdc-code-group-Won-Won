@@ -28,6 +28,8 @@
 /* USER CODE BEGIN Includes */
 #include "lcd/lcd.h"
 #include "robot/bluetooth.h"
+#include "robot/can_protocol.h"
+
 
 /* USER CODE END Includes */
 
@@ -116,10 +118,19 @@ int main(void) {
 	tft_init(PIN_ON_TOP, BLACK, WHITE, YELLOW, DARK_GREEN);
 	tft_force_clear();
 
-	// Bluetooth Comm Init
+	// CAN INIT
+	CAN_Protocol_Init();
+
+	// Bluetooth Comm INIT
 	Bluetooth_Init();
 	Bluetooth_StartReceive();
+
+
+	// Drivebase INIT
+	DriveBase_Init();
+
 	char msg[] = "Hello, World!";
+	HAL_UART_Transmit(&huart1, (uint8_t*) msg, strlen(msg), HAL_MAX_DELAY);
 
 	/* USER CODE END 2 */
 
@@ -128,7 +139,9 @@ int main(void) {
 	while (1) {
 		current_time = HAL_GetTick();
 
-//		HAL_UART_Transmit(&huart1, (uint8_t*) msg, strlen(msg), HAL_MAX_DELAY);
+		// Update CAN bus communication
+		CAN_Protocol_Update();
+
 
 		if (tft_update(50) == 0) {
 			tft_prints(0, 0, "Group Won-Won");
@@ -140,12 +153,12 @@ int main(void) {
 				tft_prints(0, 3, "Controller:");
 
 				// Display left stick
-				char buf_l[32];
+				char buf_l[40];
 				sprintf(buf_l, "LX:%+04d LY:%+04d", controller.left_stick_x, controller.left_stick_y);
 				tft_prints(0, 4, buf_l);
 
 				// Display right stick
-				char buf_r[32];
+				char buf_r[40];
 				sprintf(buf_r, "RX:%+4d RY:%+4d", controller.right_stick_x, controller.right_stick_y);
 				tft_prints(0, 5, buf_r);
 
@@ -160,7 +173,10 @@ int main(void) {
 						controller.rb);
 			} else {
 				// No controller data available
-				tft_prints(0, 4, "No controller data");
+				tft_prints(0, 4, "No controller");
+				tft_prints(0, 5, "data");
+
+
 			}
 		}
 		/* USER CODE END WHILE */

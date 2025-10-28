@@ -1,7 +1,3 @@
-Of course. Here is a more technical `README.md` aimed at a mentor.
-
----
-
 # RDC Project - Group Won-Won
 
 ## Project Overview
@@ -15,7 +11,7 @@ Codebase for Group 11 - Won Won
 The communication layer is implemented in `Core/Src/robot/bluetooth.c` and is designed to be non-blocking.
 
 - **Interrupt-Driven UART:** Data reception on `USART1` is handled via `HAL_UART_Receive_IT()`. Each received byte triggers the `Bluetooth_RxCallback()` function, which assembles a complete message string without polling or blocking the main execution thread.
-- **Custom Protocol:** A fixed-width, space-separated ASCII protocol is used for robustness and simple parsing. The protocol encapsulates the state of all joystick axes, triggers, and buttons in a single newline-terminated string. The full protocol is documented in `docs/Bluetooth.md`.
+- **Custom Protocol:** A fixed-width, space-separated ASCII protocol is used for robustness and simple parsing. The protocol encapsulates the state of all joystick axes, triggers, and buttons in a single newline-terminated string. The full protocol is documented in [docs/Bluetooth.md](docs/Bluetooth.md).
 - **Parsing and State Management:** Upon receiving a complete message, `Bluetooth_ParseCommand()` uses `sscanf` to extract values into a `ControllerParam` struct. This struct acts as the central state holder for controller inputs. The module also handles special commands, such as `ESTOP`.
 - **Connection Status:** A simple timeout mechanism, managed by `Bluetooth_Update()`, determines the connection status. If no data is received within the `BT_TIMEOUT_MS` window, the status is set to `BT_STATUS_DISCONNECTED`.
 
@@ -23,7 +19,30 @@ The communication layer is implemented in `Core/Src/robot/bluetooth.c` and is de
 
 Pre-written by Seniors.
 
-### 3. System Architecture
+### 3. Drive Base Control
+
+The robot utilizes a 3-wheel omni-drive configuration for holonomic movement, implemented in `Core/Src/robot/drivebase.c`.
+
+- **Motor Configuration:** The drive base consists of three motors arranged as follows:
+
+  - `M0`: Right Front
+  - `M1`: Rear
+  - `M2`: Left Front
+
+- **Inverse Kinematics:** The `DriveBase_SetVelocity()` function is designed to translate robot-centric velocity commands (`vx`, `vy`, `omega`) into individual target RPMs for each motor. **Note: The mathematical implementation for the inverse kinematics in this function is currently marked as a TODO and needs to be completed.**
+
+- **PID Velocity Control:** Each motor's velocity is managed by a dedicated PID controller (`Core/Src/robot/pid.c`). The `DriveBase_Update()` function, intended to be called periodically, performs the following steps for each motor:
+
+  1.  Reads the current velocity (RPM) from the motor's encoder via the CAN bus.
+  2.  Calculates the error between the target velocity and the measured velocity.
+  3.  Uses the PID controller to compute an appropriate current command.
+  4.  Sends the new current command to the motor over the CAN bus.
+
+  - The PID gains (`Kp`, `Ki`, `Kd`) are defined in `Core/Inc/robot/constants.h` and can be tuned for optimal performance.
+
+- **Motor Interface:** The drivebase communicates with the motors through a high-level CAN protocol wrapper (`Core/Src/robot/can_protocol.c`), which handles the transmission of current commands and the reception of feedback data.
+
+### 4. System Architecture
 
 The firmware is a bare-metal application with a straightforward, event-driven architecture.
 
@@ -36,8 +55,11 @@ The firmware is a bare-metal application with a straightforward, event-driven ar
 - `Core/`: Contains the main application logic.
   - `Src/main.c`: Application entry point and main loop.
   - `Src/robot/bluetooth.c`: Implementation of the Bluetooth communication protocol and state management.
+  - `Src/robot/drivebase.c`: Implementation for the 3-wheel omni-drive base, including kinematics and PID control loops.
+  - `Src/robot/pid.c`: A simple PID controller implementation.
   - `Src/lcd.c`: Implementation of the double-buffered, DMA-based display driver.
   - `Inc/`: Corresponding header files.
+  - `Inc/robot/constants.h`: Contains tunable parameters for the robot, such as PID gains.
 - `Drivers/`: Contains the ST-provided STM32F4xx HAL and CMSIS libraries.
 - `docs/`: Contains supplementary documentation.
 - `docs/Bluetooth.md`: Detailed specification of the Bluetooth communication protocol — see [docs/Bluetooth.md](docs/Bluetooth.md).

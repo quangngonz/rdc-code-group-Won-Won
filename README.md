@@ -11,7 +11,7 @@ Codebase for Group 11 - Won Won
 The communication layer is implemented in `Core/Src/robot/bluetooth.c` and is designed to be non-blocking.
 
 - **Interrupt-Driven UART:** Data reception on `USART1` is handled via `HAL_UART_Receive_IT()`. Each received byte triggers the `Bluetooth_RxCallback()` function, which assembles a complete message string without polling or blocking the main execution thread.
-- **Custom Protocol:** A fixed-width, space-separated ASCII protocol is used for robustness and simple parsing. The protocol encapsulates the state of all joystick axes, triggers, and buttons in a single newline-terminated string. The full protocol is documented in `docs/Bluetooth.md`.
+- **Custom Protocol:** A fixed-width, space-separated ASCII protocol is used for robustness and simple parsing. The protocol encapsulates the state of all joystick axes, triggers, and buttons in a single newline-terminated string. The full protocol is documented in [docs/Bluetooth.md](docs/Bluetooth.md).
 - **Parsing and State Management:** Upon receiving a complete message, `Bluetooth_ParseCommand()` uses `sscanf` to extract values into a `ControllerParam` struct. This struct acts as the central state holder for controller inputs. The module also handles special commands, such as `ESTOP`.
 - **Connection Status:** A simple timeout mechanism, managed by `Bluetooth_Update()`, determines the connection status. If no data is received within the `BT_TIMEOUT_MS` window, the status is set to `BT_STATUS_DISCONNECTED`.
 

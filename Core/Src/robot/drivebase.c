@@ -53,9 +53,10 @@ typedef struct {
 static DriveMotorControl_t drive_motors[DRIVE_MOTOR_COUNT];
 
 // Mapping to CAN motors
-static const Motor motor_can_map[DRIVE_MOTOR_COUNT] = { CAN1_MOTOR0, // Right Front (M0)
+static const Motor motor_can_map[DRIVE_MOTOR_COUNT] = {
+		CAN1_MOTOR0, // Right Front (M0)
 		CAN1_MOTOR1,  // Rear (M1)
-		CAN1_MOTOR2   // Left Front (M2)
+		CAN2_MOTOR0   // Left Front (M2)
 		};
 
 /* Private function prototypes -----------------------------------------------*/

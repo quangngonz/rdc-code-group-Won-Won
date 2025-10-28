@@ -5,9 +5,9 @@ import time
 import sys
 
 # ================= CONFIG =================
-BT_PORT = "/dev/cu.WonWon"          # UART Port
+BT_PORT = "/dev/cu.GROUP11_BT"          # UART Port
 BT_BAUD = 115200
-UPDATE_HZ = 50             # Update rate in Hz
+UPDATE_HZ = 50                          # Update rate in Hz
 # ==========================================
 
 
@@ -31,6 +31,9 @@ def format_message(lx, ly, rx, ry, lt, rt, buttons, dpad):
     """
     a, b, x, y, lb, rb, back, start, xbox = buttons
     dup, ddn, dlf, drt = dpad
+
+    if xbox == 1:
+        return "ESTOP\n"
 
     msg = f"{lx:+04d} {ly:+04d} {rx:+04d} {ry:+04d} "
     msg += f"{lt:03d} {rt:03d} "

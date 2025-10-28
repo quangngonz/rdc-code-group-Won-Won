@@ -3,8 +3,10 @@ import serial
 import serial.tools.list_ports
 import time
 import sys
+import socket
 
 # ================= CONFIG =================
+BT_ADDR = "98:d3:02:96:be:1b"
 BT_PORT = "/dev/cu.WonWon"          # UART Port
 BT_BAUD = 115200
 UPDATE_HZ = 50             # Update rate in Hz
@@ -85,8 +87,13 @@ def main():
     if not test_mode:
         # Connect to Bluetooth UART
         try:
-            bt = serial.Serial(BT_PORT, BT_BAUD, timeout=1)
-            print(f"Connected to Bluetooth at {BT_PORT} ({BT_BAUD} baud)")
+            # bt = serial.Serial(BT_PORT, BT_BAUD, timeout=1)
+            # print(f"Connected to Bluetooth at {BT_PORT} ({BT_BAUD} baud)")
+            
+            bt = socket.socket(socket.AF_BLUETOOTH, socket.SOCK_STREAM, socket.BTPROTO_RFCOMM)
+
+            bt.connect(('98:d3:02:96:be:1b', 1))
+
         except serial.SerialException as e:
             print(f"Failed to open Bluetooth port: {e}")
             return
@@ -120,8 +127,9 @@ def main():
             lb = joy.get_button(6)
             rb = joy.get_button(7)
             back = joy.get_button(10)
-            start = joy.get_button(11)
-            xbox = joy.get_button(12)
+            # start = joy.get_button(11)
+            start = 0
+            xbox = 0
 
             # D-pad
             hat = joy.get_hat(0)
@@ -142,7 +150,8 @@ def main():
                     msg, verbose
                 )
             else:
-                bt.write(msg.encode("utf-8"))
+                bt.send(msg.encode("utf-8"))
+                # bt.write(msg.encode("utf-8"))
                 print_controller_output(
                     lx, ly, rx, ry, lt, rt,
                     (a, b, x, y, lb, rb, back, start, xbox),
@@ -156,7 +165,9 @@ def main():
         print("\nStopped by user.")
 
         if not test_mode:
-            bt.write(b"ESTOP\n")
+
+            bt.send(b"ESTOP\n")
+            # bt.write(b"ESTOP\n")
             print("Sent STOP command to Bluetooth device.")
 
     finally:

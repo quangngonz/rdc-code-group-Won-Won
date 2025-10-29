@@ -43,10 +43,10 @@
 #endif
 
 // Robot geometry parameters
-#define SIDE_A 0.103f          // 103mm - short side of hexagon
-#define SIDE_B 0.151f          // 151mm - long side (motors mounted at midpoint)
-#define WHEEL_OFFSET 0.020f    // Distance from frame edge to wheel center (TODO: MEASURE THIS PLEASE)
-#define WHEEL_RAD 0.0762f      // 3 inch wheel radius
+#define SIDE_A 0.093f          // 93mm - short side 
+#define SIDE_B 0.141f          // 141mm - long side
+#define WHEEL_OFFSET 0.049f    // Distance from frame mounting point to wheel center 
+#define WHEEL_RAD 0.0762f      // 3 inch 
 
 /* Private typedef -----------------------------------------------------------*/
 

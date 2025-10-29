@@ -125,24 +125,6 @@ void Control_EnableMotors(void);
  */
 void Control_DisableMotors(void);
 
-/* Advanced Functions --------------------------------------------------------*/
-
-/**
- * @brief Calculate motor velocities from movement command
- * Uses inverse kinematics for 3-wheel omni-drive
- * @param movement: Movement command
- * @param motor_vel: Output array for motor velocities [3]
- */
-void Control_CalculateMotorVelocities(Movement_t movement, int16_t motor_vel[3]);
-
-/**
- * @brief Calculate robot movement from motor velocities
- * Uses forward kinematics for 3-wheel omni-drive
- * @param motor_vel: Motor velocities array [3]
- * @param movement: Output movement structure
- */
-void Control_CalculateMovement(int16_t motor_vel[3], Movement_t* movement);
-
 #ifdef __cplusplus
 }
 #endif

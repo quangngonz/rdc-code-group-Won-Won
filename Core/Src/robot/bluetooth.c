@@ -203,18 +203,6 @@ static void Bluetooth_ParseCommand(const char* cmd_string) {
         return;
     }
 
-    // Check for emergency stop command
-    if (strcmp(cmd_string, "ESTOP") == 0) {
-        // Toggle ESTOP: if already in ESTOP mode, release it; otherwise activate it
-        if (Control_GetMode() == CONTROL_MODE_EMERGENCY_STOP) {
-            Control_ReleaseEmergencyStop();
-        } else {
-            current_command.type = BT_CMD_EMERGENCY_STOP;
-            command_available = true;
-        }
-        return;
-    }
-
     // Try to parse as controller data
     if (Bluetooth_ParseControllerData(cmd_string)) {
         current_command.type = BT_CMD_CONTROLLER;

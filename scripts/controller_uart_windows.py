@@ -8,9 +8,8 @@ from utils.controller_config_loader import load_config, get_axis, get_button, ge
 
 # ================= CONFIG =================
 BT_ADDR = "98:d3:02:96:be:1b"
-BT_PORT = "/dev/cu.WonWon"          # UART Port
 BT_BAUD = 115200
-UPDATE_HZ = 50                          # Update rate in Hz
+UPDATE_HZ = 50  # Update rate in Hz
 # ==========================================
 
 
@@ -45,7 +44,7 @@ def format_message(lx, ly, rx, ry, lt, rt, buttons, dpad):
     return msg
 
 
-def print_controller_output(lx, ly, rx, ry, lt, rt, buttons, dpad, msg=None, verbose=False):
+def print_controller_output(lx, ly, rx, ry, lt, rt, buttons, dpad, msg=None, verbose=False, received_msg=""):
     """
     Pretty-print controller data in a consistent table format using sys.stdout.flush().
     """
@@ -59,6 +58,8 @@ def print_controller_output(lx, ly, rx, ry, lt, rt, buttons, dpad, msg=None, ver
         f"{lx:+04d} {ly:+04d} {rx:+04d} {ry:+04d} {lt:+04d} {rt:+04d} |  "
         f"{a} {b} {x} {y}  {lb}  {rb}  {back}  {start}  {xbox}  |  "
         f"{dup}  {ddn}  {dlf}  {drt}   1",
+        "",
+        f"Received Message: {received_msg}",
     ]
 
     if msg and verbose:
@@ -99,9 +100,6 @@ def main():
     if not test_mode:
         # Connect to Bluetooth UART
         try:
-            # bt = serial.Serial(BT_PORT, BT_BAUD, timeout=1)
-            # print(f"Connected to Bluetooth at {BT_PORT} ({BT_BAUD} baud)")
-
             bt = socket.socket(socket.AF_BLUETOOTH,
                                socket.SOCK_STREAM, socket.BTPROTO_RFCOMM)
 
@@ -118,9 +116,18 @@ def main():
 
     input("Press Enter to begin...")
 
+    received_msg = ""
+
     try:
         while True:
             pygame.event.pump()
+
+            # Read incoming data from Bluetooth if available
+            if not test_mode and bt.in_waiting > 0:
+                try:
+                    received_msg = bt.readline().decode('utf-8').strip()
+                except Exception as e:
+                    received_msg = f"Error reading: {e}"
 
             # Read sticks (Invert Y axes) - using config
             lx = map_axis(get_axis(joy, config, "left_stick_x"))
@@ -155,16 +162,15 @@ def main():
                     lx, ly, rx, ry, lt, rt,
                     (a, b, x, y, lb, rb, back, start, xbox),
                     (dup, ddn, dlf, drt),
-                    msg, verbose
+                    msg, verbose, ""
                 )
             else:
                 bt.send(msg.encode("utf-8"))
-                # bt.write(msg.encode("utf-8"))
                 print_controller_output(
                     lx, ly, rx, ry, lt, rt,
                     (a, b, x, y, lb, rb, back, start, xbox),
                     (dup, ddn, dlf, drt),
-                    msg, verbose
+                    msg, verbose, received_msg
                 )
 
             time.sleep(delay)
@@ -173,9 +179,7 @@ def main():
         print("\nStopped by user.")
 
         if not test_mode:
-
             bt.send(b"ESTOP\n")
-            # bt.write(b"ESTOP\n")
             print("Sent STOP command to Bluetooth device.")
 
     finally:

@@ -38,6 +38,15 @@
 #include <math.h>
 
 /* Private defines -----------------------------------------------------------*/
+#ifndef M_PI
+#define M_PI 3.14159265358979323846f
+#endif
+
+// Robot geometry parameters
+#define SIDE_A 0.103f          // 103mm - short side of hexagon
+#define SIDE_B 0.151f          // 151mm - long side (motors mounted at midpoint)
+#define WHEEL_OFFSET 0.020f    // Distance from frame edge to wheel center (TODO: MEASURE THIS PLEASE)
+#define WHEEL_RAD 0.0762f      // 3 inch wheel radius
 
 /* Private typedef -----------------------------------------------------------*/
 
@@ -62,6 +71,7 @@ static const Motor motor_can_map[DRIVE_MOTOR_COUNT] = {
 /* Private function prototypes -----------------------------------------------*/
 static void DriveBase_LimitCurrent(int16_t *current);
 static void DriveBase_LimitRPM(int16_t *rpm);
+static float DriveBase_CalculateRotationScale(void);
 
 /* Exported functions --------------------------------------------------------*/
 
@@ -112,8 +122,24 @@ void DriveBase_Disable(void) {
  *                \           /
  *              M1 (Rear, 270°)
  */
-//TODO: Implement this using some maths @
-void DriveBase_SetVelocity(float vx, float vy, float omega);
+void DriveBase_SetVelocity(float vx, float vy, float omega) {
+	// 74
+	const float ROTATION_SCALE = DriveBase_CalculateRotationScale();
+	
+	// Wheel angles
+	const float ANGLE_M0 = 30.0f * M_PI / 180.0f;   // Right Front
+	const float ANGLE_M1 = 270.0f * M_PI / 180.0f;  // Rear
+	const float ANGLE_M2 = 150.0f * M_PI / 180.0f;  // Left Front
+
+	// Inverse kinematics
+	float v_M0 = vx * cosf(ANGLE_M0) + vy * sinf(ANGLE_M0) + omega * ROTATION_SCALE;
+	float v_M1 = vx * cosf(ANGLE_M1) + vy * sinf(ANGLE_M1) + omega * ROTATION_SCALE;
+	float v_M2 = vx * cosf(ANGLE_M2) + vy * sinf(ANGLE_M2) + omega * ROTATION_SCALE;
+
+	DriveBase_SetMotorVelocity(DRIVE_MOTOR_RIGHT_FRONT, (int16_t)(v_M0 * DRIVE_MAX_RPM));
+	DriveBase_SetMotorVelocity(DRIVE_MOTOR_REAR, (int16_t)(v_M1 * DRIVE_MAX_RPM));
+	DriveBase_SetMotorVelocity(DRIVE_MOTOR_LEFT_FRONT, (int16_t)(v_M2 * DRIVE_MAX_RPM));
+}
 
 /**
  * @brief Set individual motor velocity
@@ -160,7 +186,36 @@ DriveMotorStatus_t DriveBase_GetMotorStatus(DriveMotor_t motor) {
 DriveVelocity_t DriveBase_GetVelocity(void) {
 	DriveVelocity_t velocity = { 0 };
 
-	// TODO: Figure out inverse
+	// Actual velocity from motors
+	DriveMotorStatus_t status_M0 = DriveBase_GetMotorStatus(DRIVE_MOTOR_RIGHT_FRONT);
+	DriveMotorStatus_t status_M1 = DriveBase_GetMotorStatus(DRIVE_MOTOR_REAR);
+	DriveMotorStatus_t status_M2 = DriveBase_GetMotorStatus(DRIVE_MOTOR_LEFT_FRONT);
+	
+	// Normalizing stuff
+	float v_M0 = (float)status_M0.velocity_rpm / DRIVE_MAX_RPM;
+	float v_M1 = (float)status_M1.velocity_rpm / DRIVE_MAX_RPM;
+	float v_M2 = (float)status_M2.velocity_rpm / DRIVE_MAX_RPM;
+	
+	// Wheel angles
+	const float ANGLE_M0 = 30.0f * M_PI / 180.0f;   // Right Front
+	const float ANGLE_M1 = 270.0f * M_PI / 180.0f;  // Rear
+	const float ANGLE_M2 = 150.0f * M_PI / 180.0f;  // Left Front
+	
+	velocity.vx = (2.0f/3.0f) * (
+		v_M0 * cosf(ANGLE_M0) + 
+		v_M1 * cosf(ANGLE_M1) + 
+		v_M2 * cosf(ANGLE_M2)
+	);
+	
+	velocity.vy = (2.0f/3.0f) * (
+		v_M0 * sinf(ANGLE_M0) + 
+		v_M1 * sinf(ANGLE_M1) + 
+		v_M2 * sinf(ANGLE_M2)
+	);
+	
+	// Calculate omega from average wheel velocity
+	const float ROTATION_SCALE = DriveBase_CalculateRotationScale();
+	velocity.omega = (v_M0 + v_M1 + v_M2) / (3.0f * ROTATION_SCALE);
 
 	return velocity;
 }
@@ -216,5 +271,18 @@ static void DriveBase_LimitRPM(int16_t* rpm) {
     } else if (*rpm < -DRIVE_MAX_RPM) {
         *rpm = -DRIVE_MAX_RPM;
     }
+}
+
+/**
+ * @brief Calculate rotation scale factor for omega
+ * @return ROTATION_SCALE = ROBOT_RAD / WHEEL_RAD
+ */
+static float DriveBase_CalculateRotationScale(void) {
+	float temp = SIDE_A * sqrtf(3.0f) / (2.0f * SIDE_B + SIDE_A);
+	float angle = 2.0f * atanf(temp);
+	float circumradius = sqrtf((SIDE_A * SIDE_A) / (2.0f * (1.0f - cosf(angle))));
+	float projection_center_to_frame = circumradius * cosf(M_PI / 6.0f);
+	float robot_rad = projection_center_to_frame + WHEEL_OFFSET;
+	return robot_rad / WHEEL_RAD;
 }
 

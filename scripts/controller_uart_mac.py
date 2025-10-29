@@ -3,6 +3,7 @@ import serial
 import serial.tools.list_ports
 import time
 import sys
+from utils.controller_config_loader import load_config, get_axis, get_button, get_dpad, verify_config
 
 # ================= CONFIG =================
 BT_PORT = "/dev/tty.usbserial-2140"          # UART Port
@@ -75,6 +76,9 @@ def main():
     test_mode = "--test" in sys.argv
     verbose = "--verbose" in sys.argv
 
+    # Load controller configuration
+    config = load_config()
+
     # Initialize pygame and controller
     pygame.init()
     pygame.joystick.init()
@@ -86,6 +90,11 @@ def main():
     joy = pygame.joystick.Joystick(0)
     joy.init()
     print(f"Connected to controller: {joy.get_name()}")
+
+    # Verify configuration matches controller
+    if not verify_config(joy, config):
+        print("Exiting...")
+        return
 
     if not test_mode:
         # Connect to Bluetooth UART
@@ -101,7 +110,26 @@ def main():
     delay = 1.0 / UPDATE_HZ
     print("Streaming controller data... Press Ctrl+C to stop.")
 
-    input("Press Enter to begin...")
+    print("Press Enter to begin or wait 5 seconds...")
+
+    # Wait for Enter key or 5 seconds timeout
+    start_time = time.time()
+    timeout = 5.0
+
+    while time.time() - start_time < timeout:
+        pygame.event.pump()
+
+        # Check for Enter key press
+        for event in pygame.event.get():
+            if event.type == pygame.KEYDOWN and event.key == pygame.K_RETURN:
+                print("Starting...")
+                break
+        else:
+            time.sleep(0.01)
+            continue
+        break
+    else:
+        print("Timeout reached. Starting...")
 
     received_msg = ""
 
@@ -116,33 +144,29 @@ def main():
                 except Exception as e:
                     received_msg = f"Error reading: {e}"
 
-            # Read sticks (Invert Y axes)
-            lx = map_axis(joy.get_axis(0))
-            ly = -map_axis(joy.get_axis(1))
-            rx = map_axis(joy.get_axis(2))
-            ry = -map_axis(joy.get_axis(3))
+            # Read sticks (Invert Y axes) - using config
+            lx = map_axis(get_axis(joy, config, "left_stick_x"))
+            ly = -map_axis(get_axis(joy, config, "left_stick_y"))
+            rx = map_axis(get_axis(joy, config, "right_stick_x"))
+            ry = -map_axis(get_axis(joy, config, "right_stick_y"))
 
-            # Triggers (pressed=1 → released=-1)
-            lt = map_trigger(joy.get_axis(5))   # left trigger
-            rt = map_trigger(joy.get_axis(4))   # right trigger
+            # Triggers (pressed=1 → released=-1) - using config
+            lt = map_trigger(get_axis(joy, config, "left_trigger"))
+            rt = map_trigger(get_axis(joy, config, "right_trigger"))
 
-            # Buttons
-            a = joy.get_button(0)
-            b = joy.get_button(1)
-            x = joy.get_button(3)
-            y = joy.get_button(4)
-            lb = joy.get_button(6)
-            rb = joy.get_button(7)
-            back = joy.get_button(10)
-            start = joy.get_button(11)
-            xbox = joy.get_button(12)
+            # Buttons - using config
+            a = get_button(joy, config, "a")
+            b = get_button(joy, config, "b")
+            x = get_button(joy, config, "x")
+            y = get_button(joy, config, "y")
+            lb = get_button(joy, config, "lb")
+            rb = get_button(joy, config, "rb")
+            back = get_button(joy, config, "back")
+            start = get_button(joy, config, "start")
+            xbox = get_button(joy, config, "xbox")
 
-            # D-pad
-            hat = joy.get_hat(0)
-            dup = 1 if hat[1] == 1 else 0
-            ddn = 1 if hat[1] == -1 else 0
-            dlf = 1 if hat[0] == -1 else 0
-            drt = 1 if hat[0] == 1 else 0
+            # D-pad - using config
+            dup, ddn, dlf, drt = get_dpad(joy, config)
 
             msg = format_message(lx, ly, rx, ry, lt, rt,
                                  (a, b, x, y, lb, rb, back, start, xbox),

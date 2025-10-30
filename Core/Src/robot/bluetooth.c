@@ -130,10 +130,12 @@ bool Bluetooth_SendString(const char* message) {
         len = BT_TX_BUFFER_SIZE - 1;
     }
 
-    // Use non-blocking interrupt-based transmission
-    HAL_StatusTypeDef status = HAL_UART_Transmit_IT(&BT_UART_HANDLE,
-                                                      (uint8_t*)message,
-                                                      len);
+    // Use blocking transmission to ensure message is sent
+    // Timeout of 100ms should be sufficient for short messages
+    HAL_StatusTypeDef status = HAL_UART_Transmit(&BT_UART_HANDLE,
+                                                   (uint8_t*)message,
+                                                   len,
+                                                   100);  // 100ms timeout
 
     return (status == HAL_OK);
 }

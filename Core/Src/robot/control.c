@@ -150,11 +150,11 @@ bool Control_SetMode(ControlMode_t mode) {
 
     // Send mode change confirmation via Bluetooth
     if (mode == CONTROL_MODE_AUTO) {
-        Bluetooth_SendString("MODE:AUTO\n");
+        Bluetooth_SendString("MODE:AUTO  \n");
     } else if (mode == CONTROL_MODE_MANUAL) {
         Bluetooth_SendString("MODE:MANUAL\n");
     } else if (mode == CONTROL_MODE_IDLE) {
-        Bluetooth_SendString("MODE:IDLE\n");
+        Bluetooth_SendString("MODE:IDLE  \n");
     }
 
     return true;

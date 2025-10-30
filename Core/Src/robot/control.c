@@ -13,7 +13,7 @@
  * CONTROL LOGIC:
  * ==============
  * 1. E-STOP (Emergency Stop):
- *    - Xbox button (rising edge): TOGGLE E-STOP on/off
+ *    - LB + RB buttons pressed together (rising edge): TOGGLE E-STOP on/off
  *    - When active: motors disabled, all other controls ignored
  *
  * 2. Mode Switching (when not in E-STOP):
@@ -44,7 +44,7 @@ static bool motors_enabled = false;
 static bool emergency_stop_active = false;
 
 // Button state tracking for edge detection
-static uint8_t prev_xbox_button = 0;
+static uint8_t prev_lb_rb_pressed = 0;  // Track LB+RB combo for E-STOP
 static uint8_t prev_start_button = 0;
 
 /* Private function prototypes -----------------------------------------------*/
@@ -62,7 +62,7 @@ void Control_Init(void) {
     current_mode = CONTROL_MODE_IDLE;
     motors_enabled = false;
     emergency_stop_active = false;
-    prev_xbox_button = 0;
+    prev_lb_rb_pressed = 0;
     prev_start_button = 0;
 
     memset(&current_movement, 0, sizeof(Movement_t));
@@ -254,7 +254,7 @@ void Control_DisableMotors(void) {
 
 /**
  * @brief Check controller buttons for mode changes
- * - Xbox button (rising edge): Toggle E-STOP
+ * - LB + RB (both pressed, rising edge): Toggle E-STOP
  * - Start button (rising edge): Toggle between MANUAL and AUTO (if not in E-STOP)
  */
 static void Control_CheckModeButtons(ControllerParam* controller) {
@@ -262,12 +262,13 @@ static void Control_CheckModeButtons(ControllerParam* controller) {
         return;
     }
 
-    // Check Xbox button for E-STOP toggle (rising edge)
-    if (controller->xbox && !prev_xbox_button) {
+    // Check LB+RB combo for E-STOP toggle (both must be pressed)
+    uint8_t lb_rb_pressed = (controller->lb && controller->rb) ? 1 : 0;
+    if (lb_rb_pressed && !prev_lb_rb_pressed) {
         // Rising edge detected - toggle E-STOP
         Control_EmergencyStop();
     }
-    prev_xbox_button = controller->xbox;
+    prev_lb_rb_pressed = lb_rb_pressed;
 
     // Check Start button for mode switching (only if not in E-STOP)
     if (!emergency_stop_active) {

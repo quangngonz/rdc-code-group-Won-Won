@@ -4,6 +4,16 @@
 
 Codebase for Group 11 - Won Won
 
+# Robot Control System
+
+## Overview
+
+The control system manages robot state, movements, processes sensor data, and executes commands based on predefined logic.
+
+## Control Flow
+
+![Robot Control Flow Diagram](assets/robot_control_flow_diagram.png)
+
 ## Technical Implementation
 
 ### 1. Bluetooth Communication Module

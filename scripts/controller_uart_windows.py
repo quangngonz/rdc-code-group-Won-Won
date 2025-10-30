@@ -98,14 +98,17 @@ def main():
         return
 
     if not test_mode:
-        # Connect to Bluetooth UART
+        # Connect to Bluetooth UART (RFCOMM socket)
         try:
             bt = socket.socket(socket.AF_BLUETOOTH,
                                socket.SOCK_STREAM, socket.BTPROTO_RFCOMM)
 
-            bt.connect(('98:d3:02:96:be:1b', 1))
+            bt.connect((BT_ADDR, 1))
+            # Use non-blocking reads and manage our own receive buffer
+            bt.setblocking(False)
 
-        except serial.SerialException as e:
+        except Exception as e:
+            # socket operations raise OSError/Exception on failure
             print(f"Failed to open Bluetooth port: {e}")
             return
     else:
@@ -116,16 +119,38 @@ def main():
 
     input("Press Enter to begin...")
 
+    # Text of the last completed line received (decoded)
     received_msg = ""
+
+    # A growable buffer for incoming raw bytes; we accumulate until we see b"\n"
+    recv_buffer = bytearray()
+    # Temporary buffer used with recv_into to avoid per-recv allocations
+    temp_buf = bytearray(1024)
 
     try:
         while True:
             pygame.event.pump()
 
-            # Read incoming data from Bluetooth if available
-            if not test_mode and bt.in_waiting > 0:
+            # Read incoming data from Bluetooth if available (non-blocking)
+            if not test_mode:
                 try:
-                    received_msg = bt.readline().decode('utf-8').strip()
+                    # recv_into returns number of bytes read; may raise BlockingIOError
+                    n = bt.recv_into(temp_buf)
+                    if n:
+                        recv_buffer.extend(temp_buf[:n])
+                        # Check for newline terminator and extract completed lines
+                        idx = recv_buffer.find(b"\n")
+                        if idx != -1:
+                            line = bytes(recv_buffer[:idx])
+                            # remove line + newline from buffer
+                            del recv_buffer[:idx+1]
+                            try:
+                                received_msg = line.decode('utf-8', errors='replace').strip()
+                            except Exception as e:
+                                received_msg = f"Error decoding line: {e}"
+                except BlockingIOError:
+                    # No data available on non-blocking socket
+                    pass
                 except Exception as e:
                     received_msg = f"Error reading: {e}"
 
@@ -165,7 +190,8 @@ def main():
                     msg, verbose, ""
                 )
             else:
-                bt.send(msg.encode("utf-8"))
+                # Use sendall on sockets to ensure the full message is sent
+                bt.sendall(msg.encode("utf-8"))
                 print_controller_output(
                     lx, ly, rx, ry, lt, rt,
                     (a, b, x, y, lb, rb, back, start, xbox),
@@ -179,7 +205,11 @@ def main():
         print("\nStopped by user.")
 
         if not test_mode:
-            bt.send(b"ESTOP\n")
+            # Ensure stop command is delivered before closing
+            try:
+                bt.sendall(b"ESTOP\n")
+            except Exception:
+                pass
             print("Sent STOP command to Bluetooth device.")
 
     finally:

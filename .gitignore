@@ -2,3 +2,4 @@ Debug
 .DS_Store
 scripts/.venv
 2025-sw-tutorial-v3.1 Debug.launch
+scripts/*.json

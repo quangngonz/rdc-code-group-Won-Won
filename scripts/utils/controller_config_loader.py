@@ -5,7 +5,7 @@ Loads controller_config.json and provides safe getter functions.
 import json
 import os
 
-CONFIG_FILE = "controller_config.json"
+CONFIG_FILE = "C:\\Users\\USER\\Documents\\rdc-code-group-Won-Won\\scripts\\my_config.json"
 
 # Default Xbox controller mapping (fallback)
 DEFAULT_CONFIG = {

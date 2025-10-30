@@ -10,7 +10,7 @@ _input = input("Input sth: ")
 _recv = bytearray(5)
 
 while (_input != 'end'):
-    s.send("Hello")
+    s.send(b"Hello")
     # s.send(_input[:5].encode("ascii"))
     s.recv_into(_recv, 5)
     print(_recv)

@@ -1,12 +1,3 @@
-/*
- * drivebase.c
- *
- *  Created on: Oct 28, 2025
- *      Author: quangngo
- */
-
-#include "robot/drivebase.h"
-
 /**
  ******************************************************************************
  * @file    drivebase.c

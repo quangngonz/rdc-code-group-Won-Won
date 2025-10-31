@@ -138,7 +138,7 @@ def draw_trigger_bar(surface, pos, value, label, font_small):
 def draw_status_box(surface, pos, robot_mode, bt_status, telemetry, font, font_small):
     """Draw robot status information box."""
     box_width = 350
-    box_height = 200
+    box_height = 150
 
     # Background
     pygame.draw.rect(surface, (30, 30, 50),
@@ -173,28 +173,144 @@ def draw_status_box(surface, pos, robot_mode, bt_status, telemetry, font, font_s
 
     # Telemetry data (if available)
     if telemetry:
-        draw_text(surface, "Telemetry:",
-                  (pos[0] + 15, y_offset), font_small, COLOR_ACCENT)
+        motor_data = telemetry.get("motors", [])
+        # motor_data = [
+        #     {"id": "1", "velocity_rpm": 1500,
+        #         "current": 1200, "encoder": 34567, "temperature": 45},
+        #     {"id": "2", "velocity_rpm": 1450,
+        #         "current": 1150, "encoder": 34000, "temperature": 47},
+        #     {"id": "3", "velocity_rpm": 1520, "current": 1250,
+        #         "encoder": 35000, "temperature": 46}
+        # ]
+        if motor_data:
+            draw_motor_telemetry_with_box(
+                surface, (pos[0], y_offset + 50), motor_data, font_small)
+
+        gpio_data = telemetry.get("other", [])
+        if gpio_data:
+            print("GPIO Data:", gpio_data)
+
+
+def draw_motor_telemetry_with_box(surface, pos, motor_data, font_small):
+    """
+    Draw motor telemetry data.
+    In a box under the status box.
+    Args: Take in the surface to draw on, position (x,y), motor_data list, and font.
+    """
+    box_width = 350
+    # Dynamic height based on number of motors
+    box_height = 30 + len(motor_data) * 75
+
+    font_size = pygame.font.Font(None, font_small.get_height() + 10)
+
+    # Background
+    pygame.draw.rect(surface, (30, 30, 50),
+                     (pos[0], pos[1], box_width, box_height))
+    pygame.draw.rect(surface, COLOR_ACCENT,
+                     (pos[0], pos[1], box_width, box_height), 2)
+
+    y_offset = pos[1] + 15
+
+    # Title
+    draw_text(surface, "MOTOR TELEMETRY", (pos[0] + box_width // 2, y_offset),
+              pygame.font.Font(None, 28), COLOR_ACCENT, "center")
+    y_offset += 30
+
+    # Draw each motor's data
+    for motor in motor_data:
+        motor_id = motor.get("id", "?")
+        velocity = motor.get("velocity_rpm", 0)
+        current = motor.get("current", 0)
+        encoder = motor.get("encoder", 0)
+        temperature = motor.get("temperature", 0)
+
+        # Motor ID header
+        draw_text(surface, f"Motor {motor_id}", (pos[0] + 10, y_offset),
+                  font_size, COLOR_SUCCESS)
         y_offset += 20
-        for line in telemetry[:3]:  # Show max 3 lines
-            draw_text(surface, line, (pos[0] + 15,
-                      y_offset), font_small, COLOR_TEXT)
-            y_offset += 18
+
+        # Motor data (compact 2-column layout)
+        draw_text(surface, f"RPM: {velocity:4d}", (pos[0] + 15, y_offset),
+                  font_size, COLOR_TEXT)
+        draw_text(surface, f"Cur: {current:4d}", (pos[0] + 180, y_offset),
+                  font_size, COLOR_TEXT)
+        y_offset += 18
+
+        draw_text(surface, f"Enc: {encoder:5d}", (pos[0] + 15, y_offset),
+                  font_size, COLOR_TEXT)
+
+        # Temperature warning color
+        temp_color = COLOR_ERROR if temperature > 60 else COLOR_WARNING if temperature > 50 else COLOR_TEXT
+        draw_text(surface, f"Tmp: {temperature:2d}°C", (pos[0] + 180, y_offset),
+                  font_size, temp_color)
+        y_offset += 30
+
+
+def draw_gpio_status(surface, pos, gpio_data, font_small):
+    # TODO: Implement GPIO status drawing if needed
+    pass
+
+
+def parse_motor_data(motor_str):
+    """
+    Parse motor data string: "MOT[ID] vel cur ecn temp"
+    Returns dict with motor info or None if parsing fails
+    """
+    try:
+        parts = motor_str.strip().split()
+        if len(parts) < 5 or not parts[0].startswith("MOT"):
+            return None
+
+        motor_id = parts[0][3:]  # Extract ID from MOT[ID]
+        velocity = int(parts[1])
+        current = int(parts[2])
+        encoder = int(parts[3])
+        temperature = int(parts[4])
+
+        return {
+            "id": motor_id,
+            "velocity_rpm": velocity,
+            "current": current,
+            "encoder": encoder,
+            "temperature": temperature
+        }
+    except (ValueError, IndexError):
+        return None
 
 
 def parse_incoming_message(msg):
     """
     Parse incoming message and determine type.
     Returns: (msg_type, data)
-    - msg_type: "MODE" or "TELEMETRY"
+    - msg_type: "MODE", "TELEMETRY", or "MESSAGE"
     - data: parsed content
+
+    Telemetry format: MOT[ID] vel cur ecn temp \t MOT[ID] vel cur ecn temp \t ... \t GPIO state \t ... \n
     """
     msg = msg.strip()
 
     if '\t' in msg:
         # Telemetry data (tab-separated)
-        parts = msg.split('\t')
-        return "TELEMETRY", parts
+        parts = [p.strip() for p in msg.split('\t') if p.strip()]
+
+        # Parse motor data
+        motors = []
+        other_data = []
+
+        for part in parts:
+            if part.startswith("MOT"):
+                motor_info = parse_motor_data(part)
+                if motor_info:
+                    motors.append(motor_info)
+            else:
+                other_data.append(part)
+
+        telemetry = {
+            "motors": motors,
+            "other": other_data
+        }
+
+        return "TELEMETRY", telemetry
     else:
         # Mode or status message
         if msg.startswith("MODE:"):
@@ -237,7 +353,7 @@ def main():
 
     # Setup display
     screen_width = 1024
-    screen_height = 600
+    screen_height = 575
     screen = pygame.display.set_mode((screen_width, screen_height))
     pygame.display.set_caption("Robot Controller UI")
     clock = pygame.time.Clock()
@@ -376,13 +492,13 @@ def main():
                                  ry, "RIGHT STICK", font_small)
 
             # Triggers
-            draw_trigger_bar(screen, (450, 100), lt, "LT", font_small)
-            draw_trigger_bar(screen, (500, 100), rt, "RT", font_small)
+            draw_trigger_bar(screen, (160, 200), lt, "LT", font_small)
+            draw_trigger_bar(screen, (210, 200), rt, "RT", font_small)
 
             # Face buttons (A, B, X, Y)
-            button_center_x = 600
-            button_center_y = 180
-            button_spacing = 60
+            button_center_x = 300
+            button_center_y = 380
+            button_spacing = 40
 
             draw_button_indicator(screen, (button_center_x, button_center_y - button_spacing),
                                   "Y", y, font_small)
@@ -396,18 +512,18 @@ def main():
             # Shoulder buttons
             shoulder_y = 80
             draw_button_indicator(
-                screen, (450, shoulder_y), "LB", lb, font_small)
+                screen, (30, shoulder_y), "LB", lb, font_small)
             draw_button_indicator(
-                screen, (700, shoulder_y), "RB", rb, font_small)
+                screen, (360, shoulder_y), "RB", rb, font_small)
 
             # System buttons
-            system_y = 320
-            draw_button_indicator(screen, (450, system_y),
-                                  "BACK", back, font_small)
-            draw_button_indicator(screen, (575, system_y),
+            system_y = 500
+            draw_button_indicator(screen, (100, system_y),
+                                  "_", back, font_small)
+            draw_button_indicator(screen, (200, system_y),
                                   "XBOX", xbox, font_small)
-            draw_button_indicator(screen, (700, system_y),
-                                  "START", start, font_small)
+            draw_button_indicator(screen, (300, system_y),
+                                  "MODE", start, font_small)
 
             # D-pad
             dpad_center_x = 100
@@ -425,7 +541,7 @@ def main():
                                   "→", drt, font_small)
 
             # Status box
-            draw_status_box(screen, (550, 370), robot_mode, bt_status,
+            draw_status_box(screen, (420, 75), robot_mode, bt_status,
                             telemetry_data, font_medium, font_small)
 
             # Last message footer

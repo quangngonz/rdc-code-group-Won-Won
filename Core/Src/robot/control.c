@@ -197,6 +197,9 @@ void Control_ReleaseEmergencyStop(void) {
     emergency_stop_active = false;
     current_mode = CONTROL_MODE_IDLE;
 
+    // Enable motors
+    DriveBase_Enable();
+
     Bluetooth_SendString("ESTOP:RELEASED\n");
 }
 

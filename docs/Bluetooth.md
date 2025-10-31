@@ -25,7 +25,7 @@ LX LY RX RY LT RT A|B|X|Y|LB|RB|BACK|START|XBOX DPAD_UP DN LF RT CON\n
 **Example:**
 
 ```
-+050 -030 +000 +000 000 000 0000000000 0000 1\n
++050 -030 +000 +000 000 000 000000000 0 0 0 0 1\n
 ```
 
 ## PC-side controller script (scripts/controller_uart.py)

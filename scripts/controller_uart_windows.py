@@ -155,10 +155,14 @@ def main():
                     received_msg = f"Error reading: {e}"
 
             # Read sticks (Invert Y axes) - using config
-            lx = map_axis(get_axis(joy, config, "left_stick_x"))
-            ly = -map_axis(get_axis(joy, config, "left_stick_y"))
-            rx = map_axis(get_axis(joy, config, "right_stick_x"))
-            ry = -map_axis(get_axis(joy, config, "right_stick_y"))
+            # Apply deadzone of ±1 to stick values
+            def deadzone(val):
+                return 0 if abs(val) <= 1 else val
+
+            lx = deadzone(map_axis(get_axis(joy, config, "left_stick_x")))
+            ly = deadzone(map_axis(get_axis(joy, config, "left_stick_y")))
+            rx = deadzone(map_axis(get_axis(joy, config, "right_stick_x")))
+            ry = deadzone(map_axis(get_axis(joy, config, "right_stick_y")))
 
             # Triggers (pressed=1 → released=-1) - using config
             lt = map_trigger(get_axis(joy, config, "left_trigger"))

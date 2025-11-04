@@ -125,6 +125,12 @@ void Control_EnableMotors(void);
  */
 void Control_DisableMotors(void);
 
+/**
+ * @brief Get ToF sensor distance reading
+ * @return Distance in millimeters
+ */
+uint16_t Control_GetToFDistance(void);
+
 #ifdef __cplusplus
 }
 #endif

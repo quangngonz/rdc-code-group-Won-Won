@@ -31,9 +31,6 @@
 #include "robot/control.h"
 #include "robot/bluetooth.h"
 
-// Testing
-#include "robot/tof_sensor.h"
-
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -132,14 +129,6 @@ int main(void)
 	char msg[] = "Hello, World!";
 	HAL_UART_Transmit(&huart1, (uint8_t*) msg, strlen(msg), HAL_MAX_DELAY);
 
-	ToF_Sensor_t tof_sensor;
-
-  
-  // TODO: Change this GPIO, get the address right
-	HAL_GPIO_WritePin(GPIOA, TOF_XSHUT_Pin, GPIO_PIN_SET);
-	ToF_Sensor_Init(&tof_sensor, 0x52, GPIOA, TOF_XSHUT_Pin);
-	ToF_Sensor_Start(&tof_sensor);
-
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -147,11 +136,8 @@ int main(void)
 	while (1) {
 		current_time = HAL_GetTick();
 
-		// Control_Update() already calls Bluetooth_Update()
+		// Control_Update() calls Bluetooth_Update() and updates ToF sensor
 		Control_Update();
-
-		// Test sensor
-		ToF_Sensor_GetDistance(&tof_sensor);
 
 		// Update CAN bus communication
 		CAN_Protocol_Update();
@@ -186,13 +172,13 @@ int main(void)
 
 				tft_prints(0, 8, "LB%dRB%d", controller.lb, controller.rb);
 
-				tft_prints(0, 9, "ToF: %d mm", tof_sensor.distance);
+				tft_prints(0, 9, "ToF: %d mm", Control_GetToFDistance());
 			} else {
 				// No controller data available
 				tft_prints(0, 4, "No controller");
 				tft_prints(0, 5, "data");
 
-        tft_prints(0, 9, "ToF: %d mm", tof_sensor.distance);
+				tft_prints(0, 9, "ToF: %d mm", Control_GetToFDistance());
 
 			}
 		}

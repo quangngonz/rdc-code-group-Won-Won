@@ -31,6 +31,7 @@
 #include "robot/control.h"
 #include "robot/drivebase.h"
 #include "robot/bluetooth.h"
+#include "robot/tof_sensor.h"
 //#include "robot/sensors.h"
 //#include "robot/mechanisms.h"
 #include "main.h"
@@ -46,6 +47,9 @@ static bool emergency_stop_active = false;
 // Button state tracking for edge detection
 static uint8_t prev_lb_rb_pressed = 0;  // Track LB+RB combo for E-STOP
 static uint8_t prev_start_button = 0;
+
+// ToF sensor
+static ToF_Sensor_t tof_sensor;
 
 /* Private function prototypes -----------------------------------------------*/
 static void Control_ProcessManualMode(void);
@@ -73,6 +77,11 @@ void Control_Init(void) {
 //    Sensors_Init();
 //    Mechanisms_Init();
 
+    // Initialize ToF sensor
+    HAL_GPIO_WritePin(GPIOA, TOF_XSHUT_Pin, GPIO_PIN_SET);
+    ToF_Sensor_Init(&tof_sensor, 0x52, GPIOA, TOF_XSHUT_Pin);
+    ToF_Sensor_Start(&tof_sensor);
+
     // Start Bluetooth reception
     Bluetooth_StartReceive();
 }
@@ -85,6 +94,9 @@ void Control_Update(void) {
     // Update subsystems
     Bluetooth_Update();
 //    Sensors_Update();
+
+    // Update ToF sensor reading
+    ToF_Sensor_GetDistance(&tof_sensor);
 
     // Get controller data if available
     ControllerParam controller;
@@ -249,6 +261,14 @@ void Control_EnableMotors(void) {
 void Control_DisableMotors(void) {
     motors_enabled = false;
     DriveBase_Disable();
+}
+
+/**
+ * @brief Get ToF sensor distance reading
+ * @return Distance in millimeters
+ */
+uint16_t Control_GetToFDistance(void) {
+    return tof_sensor.distance;
 }
 
 

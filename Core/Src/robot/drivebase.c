@@ -54,9 +54,9 @@ static DriveMotorControl_t drive_motors[DRIVE_MOTOR_COUNT];
 
 // Mapping to CAN motors
 static const Motor motor_can_map[DRIVE_MOTOR_COUNT] = {
-		CAN1_MOTOR0, // Right Front (M0)
-		CAN1_MOTOR1,  // Rear (M1)
-		CAN2_MOTOR0   // Left Front (M2)
+		CAN1_MOTOR0, 	// Right Front (M0)
+		CAN1_MOTOR1,   	// Left Front (M2)
+		CAN2_MOTOR0  	// Rear (M1)
 		};
 
 /* Private function prototypes -----------------------------------------------*/
@@ -78,7 +78,7 @@ void DriveBase_Init(void) {
 		PID_Init(&drive_motors[i].velocity_pid, DRIVE_PID_KP, DRIVE_PID_KI,
 				DRIVE_PID_KD);
 	}
-}
+} 
 
 /**
  * @brief Enable drive motors

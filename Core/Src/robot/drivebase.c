@@ -123,9 +123,9 @@ void DriveBase_SetVelocity(float vx, float vy, float omega) {
 	const float ANGLE_M2 = 150.0f * M_PI / 180.0f;  // Left Front
 
 	// Inverse kinematics
-	float v_M0 = vx * cosf(ANGLE_M0) + vy * sinf(ANGLE_M0) + omega * ROTATION_SCALE;
-	float v_M1 = vx * cosf(ANGLE_M1) + vy * sinf(ANGLE_M1) + omega * ROTATION_SCALE;
-	float v_M2 = vx * cosf(ANGLE_M2) + vy * sinf(ANGLE_M2) + omega * ROTATION_SCALE;
+	float v_M0 = vx * cosf(ANGLE_M0) - vy * sinf(ANGLE_M0) + omega * ROTATION_SCALE;
+	float v_M1 = vx * cosf(ANGLE_M1) - vy * sinf(ANGLE_M1) + omega * ROTATION_SCALE;
+	float v_M2 = vx * cosf(ANGLE_M2) - vy * sinf(ANGLE_M2) + omega * ROTATION_SCALE;
 
 	DriveBase_SetMotorVelocity(DRIVE_MOTOR_RIGHT_FRONT, (int16_t)(v_M0 * DRIVE_MAX_RPM));
 	DriveBase_SetMotorVelocity(DRIVE_MOTOR_REAR, (int16_t)(v_M1 * DRIVE_MAX_RPM));
@@ -198,7 +198,7 @@ DriveVelocity_t DriveBase_GetVelocity(void) {
 		v_M2 * cosf(ANGLE_M2)
 	);
 	
-	velocity.vy = (2.0f/3.0f) * (
+	velocity.vy = -(2.0f/3.0f) * (
 		v_M0 * sinf(ANGLE_M0) + 
 		v_M1 * sinf(ANGLE_M1) + 
 		v_M2 * sinf(ANGLE_M2)

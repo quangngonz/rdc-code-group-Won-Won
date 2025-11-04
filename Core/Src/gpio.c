@@ -52,21 +52,21 @@ void MX_GPIO_Init(void)
   __HAL_RCC_GPIOD_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(TFT_RES_GPIO_Port, TFT_RES_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOA, TOF_XSHUT_Pin|TFT_RES_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOC, TFT_DC_Pin|TFT_CS_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, TFT_BL_Pin|LED4_Pin|LED3_Pin|LED2_Pin
-                          |LED1_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOB, TFT_BL_Pin|TOF_INIT_Pin|LED4_Pin|LED3_Pin
+                          |LED2_Pin|LED1_Pin, GPIO_PIN_RESET);
 
-  /*Configure GPIO pin : TFT_RES_Pin */
-  GPIO_InitStruct.Pin = TFT_RES_Pin;
+  /*Configure GPIO pins : TOF_XSHUT_Pin TFT_RES_Pin */
+  GPIO_InitStruct.Pin = TOF_XSHUT_Pin|TFT_RES_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(TFT_RES_GPIO_Port, &GPIO_InitStruct);
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
   /*Configure GPIO pins : TFT_DC_Pin TFT_CS_Pin */
   GPIO_InitStruct.Pin = TFT_DC_Pin|TFT_CS_Pin;
@@ -75,10 +75,10 @@ void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : TFT_BL_Pin LED4_Pin LED3_Pin LED2_Pin
-                           LED1_Pin */
-  GPIO_InitStruct.Pin = TFT_BL_Pin|LED4_Pin|LED3_Pin|LED2_Pin
-                          |LED1_Pin;
+  /*Configure GPIO pins : TFT_BL_Pin TOF_INIT_Pin LED4_Pin LED3_Pin
+                           LED2_Pin LED1_Pin */
+  GPIO_InitStruct.Pin = TFT_BL_Pin|TOF_INIT_Pin|LED4_Pin|LED3_Pin
+                          |LED2_Pin|LED1_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;

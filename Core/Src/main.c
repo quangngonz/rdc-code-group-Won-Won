@@ -133,9 +133,11 @@ int main(void)
 	HAL_UART_Transmit(&huart1, (uint8_t*) msg, strlen(msg), HAL_MAX_DELAY);
 
 	ToF_Sensor_t tof_sensor;
+
   
   // TODO: Change this GPIO, get the address right
-	ToF_Sensor_Init(&tof_sensor, 0x52, GPIOA, GPIO_PIN_0); 
+	HAL_GPIO_WritePin(GPIOA, TOF_XSHUT_Pin, GPIO_PIN_SET);
+	ToF_Sensor_Init(&tof_sensor, 0x52, GPIOA, TOF_XSHUT_Pin);
 	ToF_Sensor_Start(&tof_sensor);
 
   /* USER CODE END 2 */

@@ -59,6 +59,8 @@ void Error_Handler(void);
 /* Private defines -----------------------------------------------------------*/
 #define PWM1_Pin GPIO_PIN_0
 #define PWM1_GPIO_Port GPIOA
+#define TOF_XSHUT_Pin GPIO_PIN_4
+#define TOF_XSHUT_GPIO_Port GPIOA
 #define TFT_SCK_Pin GPIO_PIN_5
 #define TFT_SCK_GPIO_Port GPIOA
 #define TFT_RES_Pin GPIO_PIN_6
@@ -71,6 +73,8 @@ void Error_Handler(void);
 #define TFT_CS_GPIO_Port GPIOC
 #define TFT_BL_Pin GPIO_PIN_0
 #define TFT_BL_GPIO_Port GPIOB
+#define TOF_INIT_Pin GPIO_PIN_1
+#define TOF_INIT_GPIO_Port GPIOB
 #define Boot1_Pin GPIO_PIN_2
 #define Boot1_GPIO_Port GPIOB
 #define BTN2_Pin GPIO_PIN_2

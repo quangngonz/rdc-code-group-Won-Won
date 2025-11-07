@@ -96,6 +96,15 @@ void DriveBase_Disable(void);
 void DriveBase_SetVelocity(float vx, float vy, float omega);
 
 /**
+ * @brief Set drive currents directly (bypasses PID)
+ * Uses inverse kinematics to directly map velocities to motor currents
+ * @param vx: Forward/backward [-1.0 to 1.0]
+ * @param vy: Left/right [-1.0 to 1.0]
+ * @param omega: Rotation [-1.0 to 1.0]
+ */
+void DriveBase_SetDirectCurrent(float vx, float vy, float omega);
+
+/**
  * @brief Set individual motor velocity
  * @param motor: Motor ID
  * @param velocity_rpm: Target velocity in RPM
@@ -131,6 +140,12 @@ void DriveBase_Stop(void);
  * @brief Update drive control loop (call every 1ms)
  */
 void DriveBase_Update(void);
+
+/**
+ * @brief Apply direct currents to motors (bypassing PID)
+ * This function immediately sends current commands to motors without PID control
+ */
+void DriveBase_ApplyDirectCurrents(void);
 
 #ifdef __cplusplus
 }

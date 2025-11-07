@@ -22,6 +22,7 @@ extern "C" {
 
 /* Includes ------------------------------------------------------------------*/
 #include <stdint.h>
+#include "gpio.h"
 
 /* Drive Base PID Constants --------------------------------------------------*/
 #define DRIVE_PID_KP        7.0f
@@ -30,6 +31,11 @@ extern "C" {
 
 /* Drive Base Physical Constants ---------------------------------------------*/
 #define DRIVE_ROBOT_RADIUS  0.2f    // Distance from center to wheel (meters)
+
+/* Pneumatic Arm GPIO Configuration ------------------------------------------*/
+// Configure these to match your hardware setup
+#define PNEUMATIC_GPIO_PORT     GPIOA  
+#define PNEUMATIC_GPIO_PIN      GPIO_PIN_0
 
 #ifdef __cplusplus
 }

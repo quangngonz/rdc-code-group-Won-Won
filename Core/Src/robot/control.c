@@ -32,6 +32,7 @@
 #include "robot/drivebase.h"
 #include "robot/bluetooth.h"
 #include "robot/tof_sensor.h"
+#include "robot/pneumatic.h"
 //#include "robot/sensors.h"
 //#include "robot/mechanisms.h"
 #include "main.h"
@@ -47,9 +48,30 @@ static bool emergency_stop_active = false;
 // Button state tracking for edge detection
 static uint8_t prev_lb_rb_pressed = 0;  // Track LB+RB combo for E-STOP
 static uint8_t prev_start_button = 0;
+static uint8_t prev_a_button = 0;       // Track A button for pneumatic extend
+static uint8_t prev_b_button = 0;       // Track B button for pneumatic retract
+static uint8_t prev_x_button = 0;       // Track X button for pneumatic toggle
 
 // ToF sensor
 static ToF_Sensor_t tof_sensor;
+
+// Autonomous state machine
+typedef enum {
+    AUTO_STATE_IDLE = 0,
+    AUTO_STATE_MOVE_FORWARD_1,
+    AUTO_STATE_EXTEND_ARM_1,
+    AUTO_STATE_ROTATE_120,
+    AUTO_STATE_RETRACT_ARM_1,
+    AUTO_STATE_STOP_1,
+    AUTO_STATE_ROTATE_BACK,
+    AUTO_STATE_MOVE_FORWARD_2,
+    AUTO_STATE_EXTEND_ARM_2,
+    AUTO_STATE_ROTATE_180,
+    AUTO_STATE_COMPLETE
+} AutoState_t;
+
+static AutoState_t auto_state = AUTO_STATE_IDLE;
+static uint32_t auto_state_start_time = 0;
 
 /* Private function prototypes -----------------------------------------------*/
 static void Control_ProcessManualMode(void);
@@ -68,6 +90,9 @@ void Control_Init(void) {
     emergency_stop_active = false;
     prev_lb_rb_pressed = 0;
     prev_start_button = 0;
+    prev_a_button = 0;
+    prev_b_button = 0;
+    prev_x_button = 0;
 
     memset(&current_movement, 0, sizeof(Movement_t));
 
@@ -271,6 +296,34 @@ uint16_t Control_GetToFDistance(void) {
     return tof_sensor.distance;
 }
 
+/**
+ * @brief Apply direct motor current control without PID
+ * Passes joystick inputs to drivebase for direct current control
+ * This bypasses the PID controller and sends current commands directly to motors
+ */
+void Control_SetDirectCurrent(float left_x, float left_y, float theta) {
+    // Clamp input values to [-1.0, 1.0]
+    if (left_x > 1.0f) left_x = 1.0f;
+    if (left_x < -1.0f) left_x = -1.0f;
+    if (left_y > 1.0f) left_y = 1.0f;
+    if (left_y < -1.0f) left_y = -1.0f;
+    if (theta > 1.0f) theta = 1.0f;
+    if (theta < -1.0f) theta = -1.0f;
+
+    // Enable motors if not already enabled
+    if (!motors_enabled) {
+        Control_EnableMotors();
+    }
+
+    // Map joystick inputs to robot velocity components
+    float vx = left_y;   // Forward/backward
+    float vy = left_x;   // Left/right strafe
+    float omega = theta; // Rotation
+
+    // Pass to drivebase for direct current control
+    DriveBase_SetDirectCurrent(vx, vy, omega);
+}
+
 
 
 /* Private functions ---------------------------------------------------------*/
@@ -309,61 +362,228 @@ static void Control_CheckModeButtons(ControllerParam* controller) {
 
 /**
  * @brief Process manual control mode
+ * 
+ * =============================================================================
+ * CONTROL MODE SELECTION:
+ * =============================================================================
+ * 
+ * This implementation uses DIRECT CURRENT CONTROL (no PID).
+ * The joystick inputs are directly mapped to motor currents.
+ * 
+ * To switch back to PID velocity control, replace the code below with:
+ * 
+ *   float vx = controller.left_stick_y / 100.0f;  // Forward/backward
+ *   float vy = controller.left_stick_x / 100.0f;  // Left/right strafe
+ *   float omega = controller.right_stick_x / 100.0f;  // Rotation
+ *   Control_SetMovement(vx, vy, omega);
+ *   Control_ApplyMovement(current_movement);
+ * 
+ * =============================================================================
  */
 static void Control_ProcessManualMode(void) {
     ControllerParam controller;
     if (Bluetooth_GetController(&controller)) {
         // Convert joystick values (-100 to 100) to normalized values (-1.0 to 1.0)
-        float vx = controller.left_stick_y / 100.0f;  // Forward/backward
-        float vy = controller.left_stick_x / 100.0f;  // Left/right strafe
-        float omega = controller.right_stick_x / 100.0f;  // Rotation
+        float left_x = controller.left_stick_x / 100.0f;  // Left/right strafe
+        float left_y = controller.left_stick_y / 100.0f;  // Forward/backward
+        float theta = controller.right_stick_x / 100.0f;  // Rotation
 
-        // Set movement
-        Control_SetMovement(vx, vy, omega);
+        // DIRECT CURRENT CONTROL (bypasses PID - trusts your drivers!)
+        Control_SetDirectCurrent(left_x, left_y, theta);
+        
+        // Apply the currents directly to motors
+        DriveBase_ApplyDirectCurrents();
 
-        // Get controller buttons data for mechanism control
-        if (controller.a) {
-            // Mechanisms_ActivateA();
+        // Pneumatic arm control with edge detection
+        // A button: Extend arm (on button press)
+        if (controller.a && !prev_a_button) {
+            Pneumatic_Extend();
         }
-        if (controller.b) {
-            // Mechanisms_ActivateB();
+        prev_a_button = controller.a;
+        
+        // B button: Retract arm (on button press)
+        if (controller.b && !prev_b_button) {
+            Pneumatic_Retract();
         }
+        prev_b_button = controller.b;
+        
+        // X button: Toggle arm state (on button press)
+        if (controller.x && !prev_x_button) {
+            Pneumatic_Toggle();
+        }
+        prev_x_button = controller.x;
         
     } else {
-        // No controller data - stop
-        Control_SetMovement(0, 0, 0);
+        // No controller data - stop all motors
+        Control_SetDirectCurrent(0, 0, 0);
+        DriveBase_ApplyDirectCurrents();
     }
-       
-    // Apply movement to motors
-    Control_ApplyMovement(current_movement);
 }
 
 /**
  * @brief Process autonomous control mode
- * Waits for A button to start autonomous routine
+ * State machine with timing for sequential autonomous actions
  */
 static void Control_ProcessAutoMode(void) {
     static bool auto_running = false;
+    uint32_t current_time = HAL_GetTick();
+    uint32_t elapsed_time = current_time - auto_state_start_time;
     
     ControllerParam controller;
     if (Bluetooth_GetController(&controller)) {
-        // A button starts/stops autonomous routine
-        if (controller.a) {
+        // A button starts autonomous routine
+        if (controller.a && !prev_a_button) {
             auto_running = true;
+            auto_state = AUTO_STATE_MOVE_FORWARD_1;
+            auto_state_start_time = current_time;
+            Bluetooth_SendString("AUTO:STARTED\n");
         }
+        prev_a_button = controller.a;
+        
         // B button stops autonomous routine
-        if (controller.b) {
+        if (controller.b && !prev_b_button) {
             auto_running = false;
+            auto_state = AUTO_STATE_IDLE;
+            Bluetooth_SendString("AUTO:STOPPED\n");
         }
+        prev_b_button = controller.b;
     }
 
     if (auto_running) {
-        // TODO: Implement autonomous control logic
-        // Example: Follow a line, avoid obstacles, etc.
-        
-        // For now, just move in a pattern
-        Control_SetMovement(0.2, 0.2, 0);
-        Control_ApplyMovement(current_movement);
+        switch (auto_state) {
+            case AUTO_STATE_IDLE:
+                // Waiting to start
+                Control_SetMovement(0, 0, 0);
+                Control_ApplyMovement(current_movement);
+                break;
+                
+            case AUTO_STATE_MOVE_FORWARD_1:
+                // Move forward for 5 seconds
+                Control_SetMovement(0.5, 0, 0);
+                Control_ApplyMovement(current_movement);
+                
+                if (elapsed_time >= 5000) {  // 5 seconds
+                    auto_state = AUTO_STATE_EXTEND_ARM_1;
+                    auto_state_start_time = current_time;
+                    Bluetooth_SendString("AUTO:EXTEND_1\n");
+                }
+                break;
+                
+            case AUTO_STATE_EXTEND_ARM_1:
+                // Stop and extend arm
+                Control_SetMovement(0, 0, 0);
+                Control_ApplyMovement(current_movement);
+                Pneumatic_Extend();
+                
+                if (elapsed_time >= 500) {  // 0.5 seconds for arm extension
+                    auto_state = AUTO_STATE_ROTATE_120;
+                    auto_state_start_time = current_time;
+                    Bluetooth_SendString("AUTO:ROTATE_120\n");
+                }
+                break;
+                
+            case AUTO_STATE_ROTATE_120:
+                // Rotate 120 degrees (2.0 rad/s for ~1 second)
+                Control_SetMovement(0, 0, 2.0);
+                Control_ApplyMovement(current_movement);
+                
+                if (elapsed_time >= 1000) {  // 1 second rotation
+                    auto_state = AUTO_STATE_RETRACT_ARM_1;
+                    auto_state_start_time = current_time;
+                    Bluetooth_SendString("AUTO:RETRACT_1\n");
+                }
+                break;
+                
+            case AUTO_STATE_RETRACT_ARM_1:
+                // Stop and retract arm
+                Control_SetMovement(0, 0, 0);
+                Control_ApplyMovement(current_movement);
+                Pneumatic_Retract();
+                
+                if (elapsed_time >= 500) {  // 0.5 seconds for arm retraction
+                    auto_state = AUTO_STATE_STOP_1;
+                    auto_state_start_time = current_time;
+                    Bluetooth_SendString("AUTO:STOP_1\n");
+                }
+                break;
+                
+            case AUTO_STATE_STOP_1:
+                // Brief stop
+                Control_SetMovement(0, 0, 0);
+                Control_ApplyMovement(current_movement);
+                
+                if (elapsed_time >= 500) {  // 0.5 second pause
+                    auto_state = AUTO_STATE_ROTATE_BACK;
+                    auto_state_start_time = current_time;
+                    Bluetooth_SendString("AUTO:ROTATE_BACK\n");
+                }
+                break;
+                
+            case AUTO_STATE_ROTATE_BACK:
+                // Rotate back to original position
+                Control_SetMovement(0, 0, -2.0);
+                Control_ApplyMovement(current_movement);
+                
+                if (elapsed_time >= 1000) {  // 1 second rotation back
+                    auto_state = AUTO_STATE_MOVE_FORWARD_2;
+                    auto_state_start_time = current_time;
+                    Bluetooth_SendString("AUTO:FORWARD_2\n");
+                }
+                break;
+                
+            case AUTO_STATE_MOVE_FORWARD_2:
+                // Move forward to next block for 5 seconds
+                Control_SetMovement(0.5, 0, 0);
+                Control_ApplyMovement(current_movement);
+                
+                if (elapsed_time >= 5000) {  // 5 seconds
+                    auto_state = AUTO_STATE_EXTEND_ARM_2;
+                    auto_state_start_time = current_time;
+                    Bluetooth_SendString("AUTO:EXTEND_2\n");
+                }
+                break;
+                
+            case AUTO_STATE_EXTEND_ARM_2:
+                // Stop and extend arm
+                Control_SetMovement(0, 0, 0);
+                Control_ApplyMovement(current_movement);
+                Pneumatic_Extend();
+                
+                if (elapsed_time >= 500) {  // 0.5 seconds for arm extension
+                    auto_state = AUTO_STATE_ROTATE_180;
+                    auto_state_start_time = current_time;
+                    Bluetooth_SendString("AUTO:ROTATE_180\n");
+                }
+                break;
+                
+            case AUTO_STATE_ROTATE_180:
+                // Rotate 180 degrees (3.14 rad/s)
+                Control_SetMovement(0, 0, 3.14);
+                Control_ApplyMovement(current_movement);
+                
+                if (elapsed_time >= 1000) {  // 1 second for 180 degree rotation
+                    auto_state = AUTO_STATE_COMPLETE;
+                    auto_state_start_time = current_time;
+                    Bluetooth_SendString("AUTO:COMPLETE\n");
+                }
+                break;
+                
+            case AUTO_STATE_COMPLETE:
+                // Sequence complete - stop
+                Control_SetMovement(0, 0, 0);
+                Control_ApplyMovement(current_movement);
+                auto_running = false;
+                auto_state = AUTO_STATE_IDLE;
+                break;
+                
+            default:
+                // Unknown state - reset
+                auto_state = AUTO_STATE_IDLE;
+                auto_running = false;
+                Control_SetMovement(0, 0, 0);
+                Control_ApplyMovement(current_movement);
+                break;
+        }
     } else {
         // Auto mode but not running - stay still
         Control_SetMovement(0, 0, 0);

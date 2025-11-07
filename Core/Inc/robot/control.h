@@ -131,6 +131,15 @@ void Control_DisableMotors(void);
  */
 uint16_t Control_GetToFDistance(void);
 
+/**
+ * @brief Apply direct motor current control without PID
+ * Directly sets motor currents based on joystick inputs using inverse kinematics
+ * @param left_x: Left joystick X-axis (strafe) [-1.0 to 1.0]
+ * @param left_y: Left joystick Y-axis (forward/backward) [-1.0 to 1.0]
+ * @param theta: Right joystick X-axis (rotation) [-1.0 to 1.0]
+ */
+void Control_SetDirectCurrent(float left_x, float left_y, float theta);
+
 #ifdef __cplusplus
 }
 #endif

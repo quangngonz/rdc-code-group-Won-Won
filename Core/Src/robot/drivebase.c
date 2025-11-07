@@ -213,6 +213,34 @@ DriveVelocity_t DriveBase_GetVelocity(void) {
 ;
 
 /**
+ * @brief Set drive currents directly (bypasses PID)
+ * Uses inverse kinematics to directly map velocities to motor currents
+ */
+void DriveBase_SetDirectCurrent(float vx, float vy, float omega) {
+	const float ROTATION_SCALE = DriveBase_CalculateRotationScale();
+	
+	// Wheel angles
+	const float ANGLE_M0 = 30.0f * M_PI / 180.0f;   // Right Front
+	const float ANGLE_M1 = 270.0f * M_PI / 180.0f;  // Rear
+	const float ANGLE_M2 = 150.0f * M_PI / 180.0f;  // Left Front
+
+	// Inverse kinematics: calculate normalized wheel velocities
+	float v_M0 = vx * cosf(ANGLE_M0) - vy * sinf(ANGLE_M0) + omega * ROTATION_SCALE;
+	float v_M1 = vx * cosf(ANGLE_M1) - vy * sinf(ANGLE_M1) + omega * ROTATION_SCALE;
+	float v_M2 = vx * cosf(ANGLE_M2) - vy * sinf(ANGLE_M2) + omega * ROTATION_SCALE;
+
+	// Convert normalized velocities to currents (scale to maximum current)
+	int16_t current_M0 = (int16_t)(v_M0 * DRIVE_MAX_CURRENT);
+	int16_t current_M1 = (int16_t)(v_M1 * DRIVE_MAX_CURRENT);
+	int16_t current_M2 = (int16_t)(v_M2 * DRIVE_MAX_CURRENT);
+
+	// Set motor currents (will be applied by DriveBase_ApplyDirectCurrents)
+	DriveBase_SetMotorCurrent(DRIVE_MOTOR_RIGHT_FRONT, current_M0);
+	DriveBase_SetMotorCurrent(DRIVE_MOTOR_REAR, current_M1);
+	DriveBase_SetMotorCurrent(DRIVE_MOTOR_LEFT_FRONT, current_M2);
+}
+
+/**
  * @brief Stop all drive motors
  */
 void DriveBase_Stop(void) {
@@ -275,5 +303,24 @@ static float DriveBase_CalculateRotationScale(void) {
 	float projection_center_to_frame = circumradius * cosf(M_PI / 6.0f);
 	float robot_rad = projection_center_to_frame + WHEEL_OFFSET;
 	return robot_rad / WHEEL_RAD;
+}
+
+/**
+ * @brief Apply direct currents to motors (bypassing PID)
+ * Directly sends the target currents to motors without PID computation
+ * Use this for manual control where you trust the driver input
+ */
+void DriveBase_ApplyDirectCurrents(void) {
+	for (uint8_t i = 0; i < DRIVE_MOTOR_COUNT; i++) {
+		if (!drive_motors[i].is_enabled) {
+			set_motor_current(motor_can_map[i], 0);
+			continue;
+		}
+
+		// Directly apply the target current (no PID)
+		int16_t current = drive_motors[i].target_current;
+		DriveBase_LimitCurrent(&current);
+		set_motor_current(motor_can_map[i], current);
+	}
 }
 

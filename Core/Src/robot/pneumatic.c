@@ -27,7 +27,7 @@
  * @retval None
  */
 void Pneumatic_Extend(void) {
-    HAL_GPIO_WritePin(PNEUMATIC_GPIO_PORT, PNEUMATIC_GPIO_PIN, GPIO_PIN_SET);
+    HAL_GPIO_WritePin(GPIOC, PNEU_Pin, GPIO_PIN_SET);
 }
 
 /**
@@ -36,7 +36,7 @@ void Pneumatic_Extend(void) {
  * @retval None
  */
 void Pneumatic_Retract(void) {
-    HAL_GPIO_WritePin(PNEUMATIC_GPIO_PORT, PNEUMATIC_GPIO_PIN, GPIO_PIN_RESET);
+    HAL_GPIO_WritePin(GPIOC, PNEU_Pin, GPIO_PIN_RESET);
 }
 
 /**
@@ -45,7 +45,7 @@ void Pneumatic_Retract(void) {
  * @retval None
  */
 void Pneumatic_Toggle(void) {
-    HAL_GPIO_TogglePin(PNEUMATIC_GPIO_PORT, PNEUMATIC_GPIO_PIN);
+    HAL_GPIO_TogglePin(GPIOC, PNEU_Pin);
 }
 
 /**
@@ -53,5 +53,5 @@ void Pneumatic_Toggle(void) {
  * @retval GPIO_PinState Current state (GPIO_PIN_SET = extended, GPIO_PIN_RESET = retracted)
  */
 GPIO_PinState Pneumatic_GetState(void) {
-    return HAL_GPIO_ReadPin(PNEUMATIC_GPIO_PORT, PNEUMATIC_GPIO_PIN);
+    return HAL_GPIO_ReadPin(GPIOC, PNEU_Pin);
 }

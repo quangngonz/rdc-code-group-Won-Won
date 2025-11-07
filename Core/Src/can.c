@@ -264,6 +264,7 @@ void can_init() {
 	HAL_CAN_ActivateNotification(&hcan1, CAN_IT_RX_FIFO0_MSG_PENDING);
 
 	CAN_FilterConfigStructure.FilterBank = 14;
+	CAN_FilterConfigStructure.FilterFIFOAssignment = CAN_FILTER_FIFO1;
 
 	HAL_CAN_ConfigFilter(&hcan2, &CAN_FilterConfigStructure);
 	HAL_CAN_Start(&hcan2);
@@ -303,6 +304,8 @@ void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan) {
 		return;
 	}
 
+	led_on(LED1);
+
 	uint8_t base_id = rx_header.StdId - CAN_3508_M1_ID;
 
 	MotorFeedback fb;
@@ -319,6 +322,8 @@ void HAL_CAN_RxFifo1MsgPendingCallback(CAN_HandleTypeDef *hcan) {
 	if (HAL_CAN_GetRxMessage(hcan, CAN_RX_FIFO1, &rx_header, rx_data) != HAL_OK) {
 		return;
 	}
+
+	led_on(LED1);
 
 	uint8_t base_id = rx_header.StdId - CAN_3508_M1_ID + 8;
 
@@ -386,6 +391,8 @@ void can_ctrl_loop() {
 	can_transmit(&hcan2, RM_TX_GRP2_ID, rm_ctrl_cmd[CAN2_MOTOR4], rm_ctrl_cmd[CAN2_MOTOR5], rm_ctrl_cmd[CAN2_MOTOR6],
 				 rm_ctrl_cmd[CAN2_MOTOR7]);
 
+	led_off(LED1);
+	led_off(LED2);
 	/* ======= RX ======= */
 	HAL_CAN_RxFifo0MsgPendingCallback(&hcan1);
 	HAL_CAN_RxFifo1MsgPendingCallback(&hcan2);

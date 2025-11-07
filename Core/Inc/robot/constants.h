@@ -33,8 +33,8 @@ extern "C" {
 #define DRIVE_ROBOT_RADIUS  0.2f    // Distance from center to wheel (meters)
 
 /* Pneumatic Arm GPIO Configuration ------------------------------------------*/
-#define PNEUMATIC_GPIO_PORT     GPIOA  
-#define PNEUMATIC_GPIO_PIN      GPIO_PIN_0
+#define PNEUMATIC_GPIO_PORT     GPIOC
+#define PNEUMATIC_GPIO_PIN      GPIO_PIN_3
 
 #ifdef __cplusplus
 }

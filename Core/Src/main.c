@@ -141,47 +141,48 @@ int main(void)
 
 		// Update CAN bus communication
 		CAN_Protocol_Update();
-		
-		if (tft_update(50) == 0) {
-			tft_prints(0, 0, "Group Won-Won");
-			tft_prints(0, 1, "Time: %d ms", current_time);
 
-			// Get and display controller data
-			ControllerParam controller;
-			if (Bluetooth_GetController(&controller)) {
-				tft_prints(0, 3, "Controller:");
 
-				// Display left stick
-				char buf_l[40];
-				sprintf(buf_l, "LX:%+04d LY:%+04d", controller.left_stick_x,
-						controller.left_stick_y);
-				tft_prints(0, 4, buf_l);
 
-				// Display right stick
-				char buf_r[40];
-				sprintf(buf_r, "RX:%+4d RY:%+4d", controller.right_stick_x,
-						controller.right_stick_y);
-				tft_prints(0, 5, buf_r);
+		tft_prints(0, 0, "Group Won-Won");
+		tft_prints(0, 1, "Time: %d ms", current_time);
 
-				// Display triggers
-				tft_prints(0, 6, "LT:%3d RT:%3d", controller.left_trigger,
-						controller.right_trigger);
-				// Display button states (A, B, X, Y, LB, RB)
-				tft_prints(0, 7, "A%dB%dX%dY%d", controller.a, controller.b,
-						controller.x, controller.y);
+		// Get and display controller data
+		ControllerParam controller;
+		if (Bluetooth_GetController(&controller)) {
+			tft_prints(0, 3, "Controller connected");
 
-				tft_prints(0, 8, "LB%dRB%d", controller.lb, controller.rb);
+			// // Display left stick
+			// char buf_l[40];
+			// sprintf(buf_l, "LX:%+04d LY:%+04d", controller.left_stick_x,
+			// 		controller.left_stick_y);
+			// tft_prints(0, 4, buf_l);
 
-				tft_prints(0, 9, "ToF: %d mm", Control_GetToFDistance());
-			} else {
-				// No controller data available
-				tft_prints(0, 4, "No controller");
-				tft_prints(0, 5, "data");
+			// // Display right stick
+			// char buf_r[40];
+			// sprintf(buf_r, "RX:%+4d RY:%+4d", controller.right_stick_x,
+			// 		controller.right_stick_y);
+			// tft_prints(0, 5, buf_r);
 
-				tft_prints(0, 9, "ToF: %d mm", Control_GetToFDistance());
+			// // Display triggers
+			// tft_prints(0, 6, "LT:%3d RT:%3d", controller.left_trigger,
+			// 		controller.right_trigger);
+			// // Display button states (A, B, X, Y, LB, RB)
+			// tft_prints(0, 7, "A%dB%dX%dY%d", controller.a, controller.b,
+			// 		controller.x, controller.y);
 
-			}
+			// tft_prints(0, 8, "LB%dRB%d", controller.lb, controller.rb);
+
+			tft_prints(0, 9, "ToF: %d mm", Control_GetToFDistance());
+		} else {
+			// No controller data available
+			tft_prints(0, 4, "No controller");
+			// tft_prints(0, 5, "data");
+
+			tft_prints(0, 9, "ToF: %d mm", Control_GetToFDistance());
+
 		}
+		tft_update(0);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */

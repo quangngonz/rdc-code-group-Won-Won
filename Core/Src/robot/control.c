@@ -49,9 +49,10 @@ static bool emergency_stop_active = false;
 // Button state tracking for edge detection
 static uint8_t prev_lb_rb_pressed = 0;  // Track LB+RB combo for E-STOP
 static uint8_t prev_start_button = 0;
-static uint8_t prev_a_button = 0;       // Track A button for pneumatic extend
-static uint8_t prev_b_button = 0;       // Track B button for pneumatic retract
 static uint8_t prev_x_button = 0;       // Track X button for pneumatic toggle
+// BTN_1 edge tracking for motor test (rising edge starts, falling edge stops)
+static uint8_t prev_btn1 = 0;
+static uint8_t btn1_running = 0;
 
 // ToF sensor
 static ToF_Sensor_t tof_sensor;
@@ -73,8 +74,6 @@ void Control_Init(void) {
     emergency_stop_active = false;
     prev_lb_rb_pressed = 0;
     prev_start_button = 0;
-    prev_a_button = 0;
-    prev_b_button = 0;
     prev_x_button = 0;
 
     memset(&current_movement, 0, sizeof(Movement_t));
@@ -109,6 +108,38 @@ void Control_Update(void) {
     // Update ToF sensor reading
     ToF_Sensor_GetDistance(&tof_sensor);
 
+    // BTN_1 motor test: start on rising edge, stop on falling edge
+    uint8_t btn1 = btn_read(BTN1) ? 1 : 0;
+
+    // Rising edge -> start motor test
+    if (btn1 && !prev_btn1) {
+        btn1_running = 1;
+        Bluetooth_SendString("BTN1:TEST_START\n");
+    }
+
+    // Falling edge -> stop motor test (set currents to zero)
+    if (!btn1 && prev_btn1) {
+        btn1_running = 0;
+        // Use direct current control to stop motors
+        Control_SetDirectCurrent(0.0f, 0.0f, 0.0f);
+        DriveBase_ApplyDirectCurrents();
+        Bluetooth_SendString("BTN1:TEST_STOP\n");
+        // update prev_btn1 and continue with normal processing
+        prev_btn1 = btn1;
+    }
+
+    // If motor test is running, maintain test current (30% max) and skip normal control
+    if (btn1_running) {
+        // left_x = 0 (strafe), left_y = 0.30 (forward 30% of max current), theta = 0
+        Control_SetDirectCurrent(0.0f, 0.30f, 0.0f);
+        DriveBase_ApplyDirectCurrents();
+        prev_btn1 = btn1;
+        return;
+    }
+
+    // Update previous button state for next iteration
+    prev_btn1 = btn1;
+
     // Get controller data if available
     ControllerParam controller;
     if (Bluetooth_GetController(&controller)) {
@@ -134,9 +165,10 @@ void Control_Update(void) {
             break;
 
         case CONTROL_MODE_MANUAL:
-            // Manual: process controller input
+            // Manual: process controller input (uses direct current control)
             Control_ProcessManualMode();
-            break;
+            // Don't call DriveBase_Update() here - manual mode handles motor updates directly
+            return;  // Early return to skip DriveBase_Update()
 
         case CONTROL_MODE_AUTO:
             // Auto: run autonomous logic
@@ -156,7 +188,7 @@ void Control_Update(void) {
             break;
     }
 
-    // Update drive motors
+    // Update drive motors (with PID control for non-manual modes)
     DriveBase_Update();
 }
 
@@ -382,22 +414,30 @@ static void Control_ProcessManualMode(void) {
 
         // Pneumatic arm control with edge detection
         // A button: Extend arm (on button press)
-        if (controller.a && !prev_a_button) {
-            Pneumatic_Extend();
+        if (controller.a) {
+//            Pneumatic_Extend();
+        	HAL_GPIO_WritePin(GPIOC, PNEU_Pin, GPIO_PIN_SET);
         }
-        prev_a_button = controller.a;
         
         // B button: Retract arm (on button press)
-        if (controller.b && !prev_b_button) {
-            Pneumatic_Retract();
+        if (controller.b) {
+//            Pneumatic_Retract();
+        	HAL_GPIO_WritePin(GPIOC, PNEU_Pin, GPIO_PIN_RESET);
         }
-        prev_b_button = controller.b;
         
         // X button: Toggle arm state (on button press)
         if (controller.x && !prev_x_button) {
             Pneumatic_Toggle();
         }
         prev_x_button = controller.x;
+
+        // Get and display pneumatic state
+        GPIO_PinState pneu_state = Pneumatic_GetState();
+        if (pneu_state == GPIO_PIN_SET) {
+            tft_prints(0, 7, "Pneu: EXTENDED");
+        } else {
+            tft_prints(0, 7, "Pneu: RETRACTED");
+        }
         
     } else {
         // No controller data - stop all motors

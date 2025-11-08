@@ -39,6 +39,7 @@
 #include "main.h"
 #include <math.h>
 #include <string.h>
+#include <stdio.h>
 
 /* Private variables ---------------------------------------------------------*/
 static ControlMode_t current_mode = CONTROL_MODE_IDLE;
@@ -57,11 +58,16 @@ static uint8_t btn1_running = 0;
 // ToF sensor
 static ToF_Sensor_t tof_sensor;
 
+// Telemetry timing
+static uint32_t last_telemetry_time = 0;
+#define TELEMETRY_INTERVAL_MS 100  // Send telemetry every 100ms (10Hz)
+
 /* Private function prototypes -----------------------------------------------*/
 static void Control_ProcessManualMode(void);
 static void Control_ProcessAutoMode(void);
 static void Control_ApplyMovement(Movement_t movement);
 static void Control_CheckModeButtons(ControllerParam* controller);
+static void Control_SendTelemetry(void);
 
 /* Exported functions --------------------------------------------------------*/
 
@@ -140,6 +146,13 @@ void Control_Update(void) {
     // Update previous button state for next iteration
     prev_btn1 = btn1;
 
+    // Send telemetry data periodically (do this early to ensure it always runs)
+    uint32_t current_time = HAL_GetTick();
+    if (current_time - last_telemetry_time >= TELEMETRY_INTERVAL_MS) {
+        Control_SendTelemetry();
+        last_telemetry_time = current_time;
+    }
+
     // Get controller data if available
     ControllerParam controller;
     if (Bluetooth_GetController(&controller)) {
@@ -167,8 +180,8 @@ void Control_Update(void) {
         case CONTROL_MODE_MANUAL:
             // Manual: process controller input (uses direct current control)
             Control_ProcessManualMode();
-            // Don't call DriveBase_Update() here - manual mode handles motor updates directly
-            return;  // Early return to skip DriveBase_Update()
+            // Manual mode handles motor updates directly, no need for DriveBase_Update()
+            return;  // Early return to skip DriveBase_Update() (telemetry already sent above)
 
         case CONTROL_MODE_AUTO:
             // Auto: run autonomous logic
@@ -476,4 +489,35 @@ static void Control_ApplyMovement(Movement_t movement) {
 
     // DriveBase handles inverse kinematics and sets motor velocities
     DriveBase_SetVelocity(movement.vx, movement.vy, movement.omega);
+}
+
+/**
+ * @brief Send telemetry data via Bluetooth
+ * Format: MOT[ID] vel cur ecn temp \t MOT[ID] vel cur ecn temp \t TOF distance \t PNEU state \n
+ */
+static void Control_SendTelemetry(void) {
+    char telemetry_buffer[256];
+    
+    // Get motor status for all 3 motors
+    DriveMotorStatus_t motor0 = DriveBase_GetMotorStatus(DRIVE_MOTOR_RIGHT_FRONT);
+    DriveMotorStatus_t motor1 = DriveBase_GetMotorStatus(DRIVE_MOTOR_REAR);
+    DriveMotorStatus_t motor2 = DriveBase_GetMotorStatus(DRIVE_MOTOR_LEFT_FRONT);
+    
+    // Get ToF sensor distance
+    uint16_t tof_distance = tof_sensor.distance;
+    
+    // Get pneumatic state (1 = extended, 0 = retracted)
+    GPIO_PinState pneu_state = Pneumatic_GetState();
+    uint8_t pneu_value = (pneu_state == GPIO_PIN_SET) ? 1 : 0;
+    
+    // Format telemetry string: MOT[ID] vel cur ecn temp \t ... \t PNEU state
+    snprintf(telemetry_buffer, sizeof(telemetry_buffer),
+             "MOT0 %d %d %u %u\tMOT1 %d %d %u %u\tMOT2 %d %d %u %u\tTOF %u\tPNEU %u\n",
+             motor0.velocity_rpm, motor0.current, motor0.encoder, motor0.temperature,
+             motor1.velocity_rpm, motor1.current, motor1.encoder, motor1.temperature,
+             motor2.velocity_rpm, motor2.current, motor2.encoder, motor2.temperature,
+             tof_distance, pneu_value);
+    
+    // Send via Bluetooth
+    Bluetooth_SendString(telemetry_buffer);
 }

@@ -68,7 +68,7 @@ typedef struct {
 
 /* Exported constants --------------------------------------------------------*/
 #define DRIVE_MAX_RPM           3000
-#define DRIVE_MAX_CURRENT       16384
+#define DRIVE_MAX_CURRENT       8000
 
 /* Exported functions --------------------------------------------------------*/
 

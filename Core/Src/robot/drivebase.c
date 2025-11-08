@@ -55,7 +55,7 @@ static DriveMotorControl_t drive_motors[DRIVE_MOTOR_COUNT];
 static const Motor motor_can_map[DRIVE_MOTOR_COUNT] = {
 	CAN1_MOTOR1, 	// Right Front (M0)
 	CAN1_MOTOR0,   	// Left Front (M2)
-	CAN2_MOTOR0  	// Rear (M1)
+	CAN2_MOTOR2,  	// Rear (M1)
 };
 
 /* Private function prototypes -----------------------------------------------*/

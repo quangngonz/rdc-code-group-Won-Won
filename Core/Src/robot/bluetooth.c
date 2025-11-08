@@ -141,6 +141,16 @@ bool Bluetooth_SendString(const char* message) {
 }
 
 /**
+ * @brief Send telemetry data via Bluetooth
+ * Format: MOT[ID] vel cur ecn temp \t MOT[ID] vel cur ecn temp \t TOF distance \n
+ */
+bool Bluetooth_SendTelemetry(void) {
+    // This function will be called from control.c
+    // It's implemented here to keep all Bluetooth communication in one place
+    return true;  // Implementation will be in control.c since it needs motor data
+}
+
+/**
  * @brief Get Bluetooth connection status
  */
 BT_Status_t Bluetooth_GetStatus(void) {

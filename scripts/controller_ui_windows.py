@@ -171,6 +171,14 @@ def draw_status_box(surface, pos, robot_mode, bt_status, telemetry, font, font_s
               font, mode_color)
     y_offset += 30
 
+    # ToF sensor distance (if available)
+    if telemetry:
+        tof_distance = telemetry.get("tof_distance")
+        if tof_distance is not None:
+            draw_text(surface, f"ToF Distance: {tof_distance} mm", (pos[0] + 15, y_offset),
+                      font_small, COLOR_ACCENT)
+            y_offset += 25
+
     # Telemetry data (if available)
     if telemetry:
         motor_data = telemetry.get("motors", [])
@@ -184,7 +192,7 @@ def draw_status_box(surface, pos, robot_mode, bt_status, telemetry, font, font_s
         # ]
         if motor_data:
             draw_motor_telemetry_with_box(
-                surface, (pos[0], y_offset + 50), motor_data, font_small)
+                surface, (pos[0], y_offset + 25), motor_data, font_small)
 
         gpio_data = telemetry.get("other", [])
         if gpio_data:
@@ -285,7 +293,7 @@ def parse_incoming_message(msg):
     - msg_type: "MODE", "TELEMETRY", or "MESSAGE"
     - data: parsed content
 
-    Telemetry format: MOT[ID] vel cur ecn temp \t MOT[ID] vel cur ecn temp \t ... \t GPIO state \t ... \n
+    Telemetry format: MOT[ID] vel cur ecn temp \t MOT[ID] vel cur ecn temp \t ... \t TOF distance \n
     """
     msg = msg.strip()
 
@@ -293,8 +301,9 @@ def parse_incoming_message(msg):
         # Telemetry data (tab-separated)
         parts = [p.strip() for p in msg.split('\t') if p.strip()]
 
-        # Parse motor data
+        # Parse motor data and TOF sensor
         motors = []
+        tof_distance = None
         other_data = []
 
         for part in parts:
@@ -302,11 +311,20 @@ def parse_incoming_message(msg):
                 motor_info = parse_motor_data(part)
                 if motor_info:
                     motors.append(motor_info)
+            elif part.startswith("TOF"):
+                # Parse TOF distance: "TOF distance"
+                tof_parts = part.split()
+                if len(tof_parts) >= 2:
+                    try:
+                        tof_distance = int(tof_parts[1])
+                    except ValueError:
+                        pass
             else:
                 other_data.append(part)
 
         telemetry = {
             "motors": motors,
+            "tof_distance": tof_distance,
             "other": other_data
         }
 

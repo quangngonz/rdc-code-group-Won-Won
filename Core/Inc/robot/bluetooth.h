@@ -158,6 +158,13 @@ bool Bluetooth_GetCommand(BT_Command_t* cmd);
 bool Bluetooth_SendString(const char* message);
 
 /**
+ * @brief Send telemetry data via Bluetooth
+ * Format: MOT[ID] vel cur ecn temp \t MOT[ID] vel cur ecn temp \t TOF distance \n
+ * @return true if sent successfully, false otherwise
+ */
+bool Bluetooth_SendTelemetry(void);
+
+/**
  * @brief Get Bluetooth connection status
  * @return Current Bluetooth status
  */

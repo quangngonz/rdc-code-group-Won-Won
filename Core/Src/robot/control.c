@@ -39,6 +39,7 @@
 #include "main.h"
 #include <math.h>
 #include <string.h>
+#include <stdio.h>
 
 /* Private variables ---------------------------------------------------------*/
 static ControlMode_t current_mode = CONTROL_MODE_IDLE;
@@ -57,11 +58,16 @@ static uint8_t btn1_running = 0;
 // ToF sensor
 static ToF_Sensor_t tof_sensor;
 
+// Telemetry timing
+static uint32_t last_telemetry_time = 0;
+#define TELEMETRY_INTERVAL_MS 100  // Send telemetry every 100ms (10Hz)
+
 /* Private function prototypes -----------------------------------------------*/
 static void Control_ProcessManualMode(void);
 static void Control_ProcessAutoMode(void);
 static void Control_ApplyMovement(Movement_t movement);
 static void Control_CheckModeButtons(ControllerParam* controller);
+static void Control_SendTelemetry(void);
 
 /* Exported functions --------------------------------------------------------*/
 
@@ -190,6 +196,13 @@ void Control_Update(void) {
 
     // Update drive motors (with PID control for non-manual modes)
     DriveBase_Update();
+
+    // Send telemetry data periodically
+    uint32_t current_time = HAL_GetTick();
+    if (current_time - last_telemetry_time >= TELEMETRY_INTERVAL_MS) {
+        Control_SendTelemetry();
+        last_telemetry_time = current_time;
+    }
 }
 
 /**
@@ -476,4 +489,31 @@ static void Control_ApplyMovement(Movement_t movement) {
 
     // DriveBase handles inverse kinematics and sets motor velocities
     DriveBase_SetVelocity(movement.vx, movement.vy, movement.omega);
+}
+
+/**
+ * @brief Send telemetry data via Bluetooth
+ * Format: MOT[ID] vel cur ecn temp \t MOT[ID] vel cur ecn temp \t TOF distance \n
+ */
+static void Control_SendTelemetry(void) {
+    char telemetry_buffer[256];
+    
+    // Get motor status for all 3 motors
+    DriveMotorStatus_t motor0 = DriveBase_GetMotorStatus(DRIVE_MOTOR_RIGHT_FRONT);
+    DriveMotorStatus_t motor1 = DriveBase_GetMotorStatus(DRIVE_MOTOR_REAR);
+    DriveMotorStatus_t motor2 = DriveBase_GetMotorStatus(DRIVE_MOTOR_LEFT_FRONT);
+    
+    // Get ToF sensor distance
+    uint16_t tof_distance = tof_sensor.distance;
+    
+    // Format telemetry string: MOT[ID] vel cur ecn temp \t ...
+    snprintf(telemetry_buffer, sizeof(telemetry_buffer),
+             "MOT0 %d %d %u %u\tMOT1 %d %d %u %u\tMOT2 %d %d %u %u\tTOF %u\n",
+             motor0.velocity_rpm, motor0.current, motor0.encoder, motor0.temperature,
+             motor1.velocity_rpm, motor1.current, motor1.encoder, motor1.temperature,
+             motor2.velocity_rpm, motor2.current, motor2.encoder, motor2.temperature,
+             tof_distance);
+    
+    // Send via Bluetooth
+    Bluetooth_SendString(telemetry_buffer);
 }

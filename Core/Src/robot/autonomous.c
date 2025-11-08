@@ -149,105 +149,114 @@ static void Autonomous_ExecuteState(void) {
     switch (current_state) {
         case AUTO_STATE_IDLE:
             // Waiting to start
-            Control_SetMovement(0, 0, 0);
+            DriveBase_SetDirectCurrent(0, 0, 0);
             break;
             
         case AUTO_STATE_MOVE_FORWARD_1:
             // Move forward for 5 seconds
-            Control_SetMovement(0.5, 0, 0);
+            DriveBase_SetDirectCurrent(0.5, 0, 0);
             
             if (elapsed_time >= 5000) {  // 5 seconds
                 Autonomous_TransitionToState(AUTO_STATE_EXTEND_ARM_1);
+                DriveBase_SetDirectCurrent(0, 0, 0);
                 Bluetooth_SendString("AUTO:EXTEND_1\n");
             }
             break;
             
         case AUTO_STATE_EXTEND_ARM_1:
             // Stop and extend arm
-            Control_SetMovement(0, 0, 0);
+            DriveBase_SetDirectCurrent(0, 0, 0);
             Pneumatic_Extend();
             
             if (elapsed_time >= 500) {  // 0.5 seconds for arm extension
                 Autonomous_TransitionToState(AUTO_STATE_ROTATE_120);
+                DriveBase_SetDirectCurrent(0, 0, 0);
                 Bluetooth_SendString("AUTO:ROTATE_120\n");
             }
             break;
             
         case AUTO_STATE_ROTATE_120:
             // Rotate 120 degrees (2.0 rad/s for ~1 second)
-            Control_SetMovement(0, 0, 2.0);
+            DriveBase_SetDirectCurrent(0, 0, 2.0);
             
             if (elapsed_time >= 1000) {  // 1 second rotation
                 Autonomous_TransitionToState(AUTO_STATE_RETRACT_ARM_1);
+                DriveBase_SetDirectCurrent(0, 0, 0);
                 Bluetooth_SendString("AUTO:RETRACT_1\n");
             }
             break;
             
         case AUTO_STATE_RETRACT_ARM_1:
             // Stop and retract arm
-            Control_SetMovement(0, 0, 0);
+            DriveBase_SetDirectCurrent(0, 0, 0);
             Pneumatic_Retract();
             
             if (elapsed_time >= 500) {  // 0.5 seconds for arm retraction
                 Autonomous_TransitionToState(AUTO_STATE_STOP_1);
+                DriveBase_SetDirectCurrent(0, 0, 0);
                 Bluetooth_SendString("AUTO:STOP_1\n");
             }
             break;
             
         case AUTO_STATE_STOP_1:
             // Brief stop
-            Control_SetMovement(0, 0, 0);
+            DriveBase_SetDirectCurrent(0, 0, 0);
             
             if (elapsed_time >= 500) {  // 0.5 second pause
                 Autonomous_TransitionToState(AUTO_STATE_ROTATE_BACK);
+                DriveBase_SetDirectCurrent(0, 0, 0);
                 Bluetooth_SendString("AUTO:ROTATE_BACK\n");
             }
             break;
             
         case AUTO_STATE_ROTATE_BACK:
             // Rotate back to original position
-            Control_SetMovement(0, 0, -2.0);
+            DriveBase_SetDirectCurrent(0, 0, -2.0);
             
             if (elapsed_time >= 1000) {  // 1 second rotation back
                 Autonomous_TransitionToState(AUTO_STATE_MOVE_FORWARD_2);
+                DriveBase_SetDirectCurrent(0, 0, 0);
                 Bluetooth_SendString("AUTO:FORWARD_2\n");
             }
             break;
             
         case AUTO_STATE_MOVE_FORWARD_2:
             // Move forward to next block for 5 seconds
-            Control_SetMovement(0.5, 0, 0);
+            DriveBase_SetDirectCurrent(0.5, 0, 0);
             
             if (elapsed_time >= 5000) {  // 5 seconds
                 Autonomous_TransitionToState(AUTO_STATE_EXTEND_ARM_2);
+                DriveBase_SetDirectCurrent(0, 0, 0);
                 Bluetooth_SendString("AUTO:EXTEND_2\n");
             }
             break;
             
         case AUTO_STATE_EXTEND_ARM_2:
             // Stop and extend arm
-            Control_SetMovement(0, 0, 0);
+            DriveBase_SetDirectCurrent(0, 0, 0);
             Pneumatic_Extend();
             
             if (elapsed_time >= 500) {  // 0.5 seconds for arm extension
                 Autonomous_TransitionToState(AUTO_STATE_ROTATE_180);
+                DriveBase_SetDirectCurrent(0, 0, 0);
                 Bluetooth_SendString("AUTO:ROTATE_180\n");
             }
             break;
             
         case AUTO_STATE_ROTATE_180:
             // Rotate 180 degrees (3.14 rad/s)
-            Control_SetMovement(0, 0, 3.14);
+            DriveBase_SetDirectCurrent(0, 0, 3.14);
             
             if (elapsed_time >= 1000) {  // 1 second for 180 degree rotation
                 Autonomous_TransitionToState(AUTO_STATE_COMPLETE);
+                DriveBase_SetDirectCurrent(0, 0, 0);
                 Bluetooth_SendString("AUTO:COMPLETE\n");
             }
             break;
             
         case AUTO_STATE_COMPLETE:
             // Sequence complete - stop
-            Control_SetMovement(0, 0, 0);
+            DriveBase_SetDirectCurrent(0, 0, 0);
             running = false;
             current_state = AUTO_STATE_IDLE;
             break;

@@ -149,6 +149,7 @@ int main(void)
 
 		// Get and display controller data
 		ControllerParam controller;
+
 		if (Bluetooth_GetController(&controller)) {
 			tft_prints(0, 3, "Controller connected");
 

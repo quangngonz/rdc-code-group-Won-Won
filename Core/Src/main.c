@@ -117,7 +117,7 @@ int main(void)
 	led_off(LED3);
 	led_off(LED4);
 
-	tft_init(PIN_ON_TOP, BLACK, WHITE, YELLOW, DARK_GREEN);
+	tft_init(PIN_ON_BOTTOM, BLACK, WHITE, YELLOW, DARK_GREEN);
 	tft_force_clear();
 
 	// CAN INIT

@@ -57,7 +57,7 @@ void Error_Handler(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
-#define PNEU_Pin GPIO_PIN_3
+#define PNEU_Pin GPIO_PIN_2
 #define PNEU_GPIO_Port GPIOC
 #define PWM1_Pin GPIO_PIN_0
 #define PWM1_GPIO_Port GPIOA

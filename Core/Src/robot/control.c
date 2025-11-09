@@ -510,7 +510,7 @@ static void Control_SendTelemetry(void) {
     GPIO_PinState pneu_state = Pneumatic_GetState();
     uint8_t pneu_value = (pneu_state == GPIO_PIN_SET) ? 1 : 0;
     
-    // Format telemetry string: MOT[ID] vel cur ecn temp \t ... \t PNEU state
+    // Format telemetry string: MOT[ID] vel cur ecn temp \t ..\. \t PNEU state
     snprintf(telemetry_buffer, sizeof(telemetry_buffer),
              "MOT0 %d %d %u %u\tMOT1 %d %d %u %u\tMOT2 %d %d %u %u\tTOF %u\tPNEU %u\n",
              motor0.velocity_rpm, motor0.current, motor0.encoder, motor0.temperature,

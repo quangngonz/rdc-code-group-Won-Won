@@ -1,6 +1,7 @@
 import time
 import socket
 import threading
+import time as _time
 
 # Bluetooth Configuration
 BT_ADDR = "98:d3:02:96:be:1b"  # Same as controller_uart_windows.py
@@ -39,7 +40,7 @@ def send(bt, lx, ly, rx, ry, lt=0, rt=0, buttons=None, dpad=None):
 
     msg = format_message(lx, ly, rx, ry, lt, rt, buttons, dpad)
     bt.sendall(msg.encode('utf-8'))
-    print(f"> Sent: {msg.strip()}")
+    print(f"> Sent: {msg.strip()}", flush=True)
 
 
 def stop(bt):
@@ -161,6 +162,54 @@ def print_telemetry(telemetry):
     print("="*60 + "\n")
 
 
+def print_telemetry_live(telemetry):
+    """Print a concise, single-line live telemetry summary (always flush output).
+
+    This prints a compact summary so the output can be scanned quickly.
+    """
+    if not telemetry:
+        print("No telemetry yet", flush=True)
+        return
+
+    ts = _time.time()
+    motors = telemetry.get("motors", [])
+    motor_strs = []
+    for m in motors:
+        try:
+            motor_strs.append(f"M{m['id']}:{m['velocity_rpm']}rpm")
+        except Exception:
+            pass
+
+    tof = telemetry.get("tof_distance")
+    pneu = telemetry.get("pneu_state")
+    pneu_str = "?"
+    if pneu is not None:
+        pneu_str = "EXT" if pneu == 1 else "RET"
+
+    other = telemetry.get("other")
+    raw = telemetry.get("raw_message", "")
+
+    line = (f"[{ts:.1f}] TOF:{tof}mm PNEU:{pneu_str} "
+            f"MOTORS:{' '.join(motor_strs)} OTHER:{other} RAW:{raw}")
+    print(line, flush=True)
+
+
+def telemetry_printer(stop_event, interval=0.5):
+    """Background thread that prints the latest telemetry periodically.
+
+    Keeps printing the latest known telemetry even if no new packets arrive,
+    so the console always shows a live update.
+    """
+    global latest_telemetry
+    while not stop_event.is_set():
+        try:
+            print_telemetry_live(latest_telemetry)
+        except Exception as e:
+            print(f"Telemetry printer error: {e}", flush=True)
+        # Sleep in small chunks to be responsive to stop_event
+        _time.sleep(interval)
+
+
 def telemetry_listener(bt, stop_event):
     """
     Background thread to continuously listen for telemetry data.
@@ -191,68 +240,69 @@ def telemetry_listener(bt, stop_event):
                             # Update global telemetry storage
                             latest_telemetry = telemetry
                             # Optionally print it (comment out if too verbose)
+                            # immediate detailed print is commented out to avoid flooding
                             # print_telemetry(telemetry)
                         else:
                             # Non-telemetry message
-                            print(f"< Received: {msg.strip()}")
+                            print(f"< Received: {msg.strip()}", flush=True)
                     except Exception as e:
-                        print(f"< Error decoding: {e}")
+                        print(f"< Error decoding: {e}", flush=True)
         except BlockingIOError:
             # No data available
             time.sleep(0.01)
         except Exception as e:
             if not stop_event.is_set():
-                print(f"< Read error: {e}")
+                print(f"< Read error: {e}", flush=True)
             break
 
-    print("Telemetry listener stopped.")
+    print("Telemetry listener stopped.", flush=True)
 
 
 def drive_autonomous_sequence(bt):
     """
     Sends a sequence of controller-equivalent commands to the robot autonomously.
     """
-    print("Step 1: Move forward")
+    print("Step 1: Move forward", flush=True)
     send(bt, 0, +100, 0, 0)  # LY=+100 forward
     time.sleep(2.0)
 
-    print("Step 2: Strafe right")
+    print("Step 2: Strafe right", flush=True)
     send(bt, +100, 0, 0, 0)  # LX=+100 right
     time.sleep(1.5)
 
-    print("Step 3: Rotate clockwise")
+    print("Step 3: Rotate clockwise", flush=True)
     send(bt, 0, 0, +100, 0)  # RX=+100 rotate CW
     time.sleep(1.2)
 
-    print("Step 4: Move backward")
+    print("Step 4: Move backward", flush=True)
     send(bt, 0, -100, 0, 0)  # LY=-100 backward
     time.sleep(2.0)
 
-    print("Step 5: Pneumatic extend (A)")
+    print("Step 5: Pneumatic extend (A)", flush=True)
     send(bt, 0, 0, 0, 0, buttons=[1, 0, 0, 0, 0, 0, 0, 0, 0])  # A=1
     time.sleep(1.0)
 
-    print("Step 6: Pneumatic retract (B)")
+    print("Step 6: Pneumatic retract (B)", flush=True)
     send(bt, 0, 0, 0, 0, buttons=[0, 1, 0, 0, 0, 0, 0, 0, 0])  # B=1
     time.sleep(1.0)
 
-    print("Step 7: Stop all")
+    print("Step 7: Stop all", flush=True)
     stop(bt)
-    print("Autonomous sequence complete!")
+    print("Autonomous sequence complete!", flush=True)
 
 
 if __name__ == "__main__":
     # Connect to Bluetooth using socket (RFCOMM)
-    print(f"Connecting to Bluetooth device at {BT_ADDR}...")
+    print(f"Connecting to Bluetooth device at {BT_ADDR}...", flush=True)
     try:
         bt = socket.socket(socket.AF_BLUETOOTH,
                            socket.SOCK_STREAM, socket.BTPROTO_RFCOMM)
         bt.connect((BT_ADDR, BT_PORT))
         bt.setblocking(False)  # Set to non-blocking for background listener
-        print("Connected successfully!")
+        print("Connected successfully!", flush=True)
         time.sleep(1)  # allow connection to stabilize
     except Exception as e:
-        print(f"Failed to connect to Bluetooth: {e}")
+        print(f"Failed to connect to Bluetooth: {e}", flush=True)
         exit(1)
 
     # Start telemetry listener thread
@@ -260,30 +310,41 @@ if __name__ == "__main__":
     listener_thread = threading.Thread(
         target=telemetry_listener, args=(bt, stop_event), daemon=True)
     listener_thread.start()
-    print("Telemetry listener started.\n")
+    print("Telemetry listener started.\n", flush=True)
+
+    # Start a background printer thread that always prints the latest telemetry
+    printer_thread = threading.Thread(
+        target=telemetry_printer, args=(stop_event, 0.5), daemon=True)
+    printer_thread.start()
+    print("Telemetry printer started (updates every 0.5s).\n", flush=True)
 
     try:
         # Run autonomous sequence
         drive_autonomous_sequence(bt)
 
         # Wait a bit to receive final telemetry
-        print("\nWaiting for final telemetry...")
+        print("\nWaiting for final telemetry...", flush=True)
         time.sleep(2.0)
 
         # Print final telemetry state
-        print("\n" + "="*60)
-        print("FINAL TELEMETRY STATE")
-        print("="*60)
+        print("\n" + "="*60, flush=True)
+        print("FINAL TELEMETRY STATE", flush=True)
+        print("="*60, flush=True)
         print_telemetry(latest_telemetry)
 
     except KeyboardInterrupt:
-        print("\n\nInterrupted by user.")
+        print("\n\nInterrupted by user.", flush=True)
     finally:
         # Stop telemetry listener
         stop_event.set()
         listener_thread.join(timeout=2.0)
+        # Join the printer thread as well
+        try:
+            printer_thread.join(timeout=2.0)
+        except Exception:
+            pass
 
         # Send stop command
         stop(bt)
-        bt.close()
-        print("Bluetooth connection closed.")
+    bt.close()
+    print("Bluetooth connection closed.", flush=True)

@@ -1,0 +1,45 @@
+{
+    "description": "Strafe right",
+    "controls": [100, 0, 0, 0, 0, 0],
+    "duration": 1.5
+  },
+  {
+    "description": "Rotate clockwise",
+    "controls": [0, 0, 100, 0, 0, 0],
+    "duration": 1.2
+  },
+  {
+    "description": "Move backward",
+    "controls": [0, -100, 0, 0, 0, 0],
+    "duration": 2.0
+  },
+  {
+    "description": "Move left until ToF target (simple)",
+    "controls": [-100, 0, 0, 0, 0, 0],
+    "tof_target": 300,
+    "tof_timeout": 10.0,
+    "tof_tolerance": 10
+  },
+  {
+    "description": "Move forward with PID control",
+    "controls": [0, 100, 0, 0, 0, 0],
+    "tof_target": 150,
+    "tof_timeout": 15.0,
+    "use_pid": true,
+    "pid_kp": 0.8,
+    "pid_ki": 0.05,
+    "pid_kd": 0.2,
+    "min_speed": 25,
+    "tof_tolerance": 5
+  },
+  {
+    "description": "Extend Pneumatic arm",
+    "controls": null,
+    "duration": 1.0
+  },
+  {
+    "description": "Retract Pneumatic arm",
+    "controls": null,
+    "duration": 1.0
+  }
+  

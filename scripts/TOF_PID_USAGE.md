@@ -147,4 +147,3 @@ Speed = (Kp × Error) + (Ki × Accumulated_Error) + (Kd × Rate_of_Change)
 | Very slow approach   | Kp too low                | Increase Kp to 0.8-1.0      |
 | Jerky movement       | Kd too high               | Decrease Kd to 0.05         |
 
-"controls": [lx, ly, rx, ry, lt, rt]

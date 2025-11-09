@@ -28,7 +28,7 @@ def format_message(lx, ly, rx, ry, lt, rt, buttons, dpad):
 
     msg = f"{lx:+04d} {ly:+04d} {rx:+04d} {ry:+04d} "
     msg += f"{lt:03d} {rt:03d} "
-    msg += f"{a}{b}{x}{y}{lb}{rb}{back}{start}{xbox} "
+    msg += f"{b}{a}{x}{y}{lb}{rb}{back}{start}{xbox} "
     msg += f"{dup} {ddn} {dlf} {drt} 1\n"
     return msg
 

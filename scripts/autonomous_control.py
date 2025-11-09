@@ -39,17 +39,17 @@ def send_control(bt, lx, ly, rx, ry, lt=0, rt=0, buttons=None, dpad=None):
 
 
 def extend_pneumatic(bt, duration=1.0, status_callback=None):
-    """Extend pneumatic arm by holding button B for specified duration.
+    """Extend pneumatic arm by holding button A for specified duration.
     
     Args:
         bt: Bluetooth socket connection
-        duration: How long to hold button B (seconds)
+        duration: How long to hold button A (seconds)
         status_callback: Optional callback for status updates
     """
     if status_callback:
         status_callback(f"Extending pneumatic arm for {duration}s")
     
-    buttons_a = [0, 1, 0, 0, 0, 0, 0, 0, 0]  # B button pressed
+    buttons_a = [1, 0, 0, 0, 0, 0, 0, 0, 0]  # A button pressed
     dpad = [0, 0, 0, 0]
     send_interval = 0.05  # 50ms -> 20Hz
     
@@ -73,17 +73,17 @@ def extend_pneumatic(bt, duration=1.0, status_callback=None):
 
 
 def retract_pneumatic(bt, duration=1.0, status_callback=None):
-    """Retract pneumatic arm by holding button A for specified duration.
+    """Retract pneumatic arm by holding button B for specified duration.
     
     Args:
         bt: Bluetooth socket connection
-        duration: How long to hold button A (seconds)
+        duration: How long to hold button B (seconds)
         status_callback: Optional callback for status updates
     """
     if status_callback:
         status_callback(f"Retracting pneumatic arm for {duration}s")
     
-    buttons_b = [1, 0, 0, 0, 0, 0, 0, 0, 0]  # A button pressed
+    buttons_b = [0, 1, 0, 0, 0, 0, 0, 0, 0]  # B button pressed
     dpad = [0, 0, 0, 0]
     send_interval = 0.05  # 50ms -> 20Hz
     
@@ -335,17 +335,19 @@ def drive_autonomous_sequence(bt, stop_event, status_callback=None):
             tof_target = step.get("tof_target")
             tof_timeout = step.get("tof_timeout", 10.0)  # Default 10s timeout
 
+            print(f"Autonomous step: {desc}")
+
             if status_callback:
                 status_callback(f"Autonomous: {desc}")
 
             # Handle pneumatic commands (controls is None for pneumatic steps)
             if controls is None:
                 if "Extend" in desc:
-                    # Button A extends pneumatic
-                    buttons = [1, 0, 0, 0, 0, 0, 0, 0, 0]
-                elif "Retract" in desc:
-                    # Button B retracts pneumatic
+                    # Button B extends pneumatic
                     buttons = [0, 1, 0, 0, 0, 0, 0, 0, 0]
+                elif "Retract" in desc:
+                    # Button A retracts pneumatic
+                    buttons = [1, 0, 0, 0, 0, 0, 0, 0, 0]
                 else:
                     buttons = [0, 0, 0, 0, 0, 0, 0, 0, 0]
                 

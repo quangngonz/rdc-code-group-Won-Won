@@ -76,6 +76,9 @@ def draw_button_indicator(surface, pos, label, state, font):
     pygame.draw.circle(surface, color, pos, size // 2)
     pygame.draw.circle(surface, COLOR_TEXT, pos, size // 2, 2)
     draw_text(surface, label, pos, font, COLOR_TEXT, "center")
+    # return rectangle for click detection (centered on pos)
+    rect = pygame.Rect(pos[0] - size // 2, pos[1] - size // 2, size, size)
+    return rect
 
 
 def draw_stick_indicator(surface, pos, x_val, y_val, label, font_small):
@@ -401,11 +404,19 @@ def main():
     font_medium = pygame.font.Font(None, 28)
     font_small = pygame.font.Font(None, 20)
 
+    # On-screen MODE/START button override (momentary)
+    start_override = False
+    # Predefined coordinates for system buttons so events can reference them
+    system_button_pos_x = 300
+    system_button_pos_y = 500
+    system_button_radius = 20
+
     # Robot state
     robot_mode = "DISCONNECTED"
     bt_status = "DISCONNECTED"
     telemetry_data = []
     last_message = ""
+    last_message_time = None
 
     if not test_mode:
         # Connect to Bluetooth UART (RFCOMM socket)
@@ -443,6 +454,21 @@ def main():
                 elif event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_ESCAPE:
                         running = False
+                elif event.type == pygame.MOUSEBUTTONDOWN:
+                    # Left click -> check MODE button area
+                    if event.button == 1:
+                        mx, my = event.pos
+                        rect_start_click = pygame.Rect(
+                            system_button_pos_x - system_button_radius,
+                            system_button_pos_y - system_button_radius,
+                            system_button_radius * 2,
+                            system_button_radius * 2,
+                        )
+                        if rect_start_click.collidepoint(mx, my):
+                            start_override = True
+                            # Show feedback to user for the click
+                            last_message = "MODE button clicked (sent start=1)"
+                            last_message_time = time.time()
 
             pygame.event.pump()
 
@@ -497,14 +523,17 @@ def main():
             lb = get_button(joy, config, "lb")
             rb = get_button(joy, config, "rb")
             back = get_button(joy, config, "back")
-            start = get_button(joy, config, "start")
+            start_btn = get_button(joy, config, "start")
             xbox = get_button(joy, config, "xbox")
 
             dup, ddn, dlf, drt = get_dpad(joy, config)
 
+            # Combine joystick start with on-screen override for a momentary press
+            start_to_send = 1 if (start_btn or start_override) else 0
+
             # Send data
             msg = format_message(lx, ly, rx, ry, lt, rt,
-                                 (a, b, x, y, lb, rb, back, start, xbox),
+                                 (a, b, x, y, lb, rb, back, start_to_send, xbox),
                                  (dup, ddn, dlf, drt))
 
             if bt and not test_mode:
@@ -513,6 +542,21 @@ def main():
                 except Exception as e:
                     last_message = f"Send error: {e}"
                     bt_status = "ERROR"
+
+            # Clear momentary override (only send once)
+            if start_override:
+                start_override = False
+
+            # Clear last_message after a short timeout (2 seconds)
+            if last_message_time is not None:
+                try:
+                    if time.time() - last_message_time > 2.0:
+                        last_message = ""
+                        last_message_time = None
+                except Exception:
+                    # If time fails for some reason, just clear both
+                    last_message = ""
+                    last_message_time = None
 
             # ========== RENDER UI ==========
             screen.fill(COLOR_BG)
@@ -554,14 +598,14 @@ def main():
             draw_button_indicator(
                 screen, (360, shoulder_y), "RB", rb, font_small)
 
-            # System buttons
-            system_y = 500
-            draw_button_indicator(screen, (100, system_y),
+            # System buttons (use predefined coords so click area matches)
+            draw_button_indicator(screen, (100, system_button_pos_y),
                                   "_", back, font_small)
-            draw_button_indicator(screen, (200, system_y),
+            draw_button_indicator(screen, (200, system_button_pos_y),
                                   "XBOX", xbox, font_small)
-            draw_button_indicator(screen, (300, system_y),
-                                  "MODE", start, font_small)
+            # MODE button: show pressed if controller start pressed or on-screen override active
+            draw_button_indicator(screen, (system_button_pos_x, system_button_pos_y),
+                                  "MODE", (start_btn or start_override), font_small)
 
             # D-pad
             dpad_center_x = 100

@@ -1,75 +1,122 @@
 # RDC Project - Group Won-Won
 
-## Project Overview
+This repository contains the complete codebase for the "Won-Won" robot. The system is built around an STM32 microcontroller and features a 3-wheel omni-drive base, a pneumatic actuator, and a Time-of-Flight (ToF) sensor. The robot can be operated manually via a Bluetooth-connected gamepad or run a predefined autonomous sequence.
 
-Codebase for Group 11 - Won Won
+## System Architecture
 
-# Robot Control System
+The project is divided into two main components: the embedded firmware for the robot's microcontroller and a host-side Python application for remote control and monitoring.
 
-## Overview
-
-The control system manages robot state, movements, processes sensor data, and executes commands based on predefined logic.
-
-## Control Flow
+1.  **Embedded System (STM32F405):** The bare-metal firmware running on the robot. It is responsible for all real-time tasks, including motor control, sensor processing, and command execution.
+2.  **Host Controller Application (PC):** A Python-based GUI application that runs on a computer. It reads input from a connected gamepad, sends control commands to the robot over Bluetooth, and displays telemetry data received from the robot.
 
 ![Robot Control Flow Diagram](assets/robot_control_flow_diagram.png)
 
-## Technical Implementation
+## Features
 
-### 1. Bluetooth Communication Module
+*   **Holonomic Movement:** 3-wheel omni-directional drive base allows for movement in any direction.
+*   **Dual Control Modes:** Switch between manual (gamepad) and autonomous operation.
+*   **Wireless Communication:** Bluetooth (UART) for robust, non-blocking communication with the host application.
+*   **Sensor Integration:** Includes a VL53L1X Time-of-Flight sensor for distance measurement.
+*   **Actuator Control:** Manages a pneumatic arm for task-specific actions.
+*   **Real-time Feedback:** A double-buffered TFT LCD displays on-robot status, while the host application provides detailed telemetry.
+*   **Configurable Autonomy:** Autonomous sequences are defined in a simple JSON file (`scripts/autonomous_sequence.json`).
 
-The communication layer is implemented in `Core/Src/robot/bluetooth.c` and is designed to be non-blocking.
+## Hardware and Peripheral Configuration
 
-- **Interrupt-Driven UART:** Data reception on `USART1` is handled via `HAL_UART_Receive_IT()`. Each received byte triggers the `Bluetooth_RxCallback()` function, which assembles a complete message string without polling or blocking the main execution thread.
-- **Custom Protocol:** A fixed-width, space-separated ASCII protocol is used for robustness and simple parsing. The protocol encapsulates the state of all joystick axes, triggers, and buttons in a single newline-terminated string. The full protocol is documented in [docs/Bluetooth.md](docs/Bluetooth.md).
-- **Parsing and State Management:** Upon receiving a complete message, `Bluetooth_ParseCommand()` uses `sscanf` to extract values into a `ControllerParam` struct. This struct acts as the central state holder for controller inputs. The module also handles special commands, such as `ESTOP`.
-- **Connection Status:** A simple timeout mechanism, managed by `Bluetooth_Update()`, determines the connection status. If no data is received within the `BT_TIMEOUT_MS` window, the status is set to `BT_STATUS_DISCONNECTED`.
+The firmware is configured using STM32CubeMX (`2025-sw-tutorial-v3.1.ioc`). Key peripherals and their pinouts are as follows:
 
-### 2. TFT LCD Driver
+| Peripheral | Instance | Pins                                | Purpose                                   |
+| :--------- | :------- | :---------------------------------- | :---------------------------------------- |
+| **CAN**    | `CAN1`   | `PA11` (RX), `PA12` (TX)            | Motor control and feedback (Drive Base)   |
+|            | `CAN2`   | `PB12` (RX), `PB13` (TX)            | Motor control and feedback (Drive Base)   |
+| **UART**   | `USART1` | `PA9` (TX), `PA10` (RX)             | Bluetooth Communication                   |
+| **SPI**    | `SPI1`   | `PA5` (SCK), `PA7` (MOSI)           | TFT LCD Display                           |
+| **I²C**    | `I2C2`   | `PB10` (SCL), `PB11` (SDA)          | VL53L1X Time-of-Flight Sensor             |
+| **GPIO**   | `PC2`    | Output                              | Pneumatic Solenoid Control                |
+|            | `PA4`    | Output                              | ToF Sensor XSHUT Pin                      |
+|            | `PB4-PB7`| Output                              | On-board LEDs (LED4-LED1)                 |
+|            | `PB3, PD2`| Input (Pull-up)                     | On-board Buttons (BTN1, BTN2)             |
 
-Pre-written by Seniors.
+## Firmware Details (`Core/`)
 
-### 3. Drive Base Control
+The embedded application is a bare-metal program with an event-driven architecture. The main loop in `main.c` orchestrates calls to the various robot subsystems.
 
-The robot utilizes a 3-wheel omni-drive configuration for holonomic movement, implemented in `Core/Src/robot/drivebase.c`.
+### 1. Control System (`Core/Src/robot/control.c`)
 
-- **Motor Configuration:** The drive base consists of three motors arranged as follows:
+The control system acts as the main state machine, managing the robot's operational mode.
+*   **Modes:** `IDLE`, `MANUAL`, `AUTO`, and `EMERGENCY_STOP`.
+*   **E-STOP:** An emergency stop can be triggered via a specific controller button combination, which immediately disables all motors.
+*   **Mode Switching:** The `Start` button on the controller toggles between `MANUAL` and `AUTO` modes.
 
-  - `M0`: Right Front
-  - `M1`: Rear
-  - `M2`: Left Front
+### 2. Drive Base Control (`Core/Src/robot/drivebase.c`)
 
-- **Inverse Kinematics:** The `DriveBase_SetVelocity()` function is designed to translate robot-centric velocity commands (`vx`, `vy`, `omega`) into individual target RPMs for each motor. **Note: The mathematical implementation for the inverse kinematics in this function is currently marked as a TODO and needs to be completed.**
+This module implements a 3-wheel omni-drive for holonomic movement.
+*   **Motor Configuration:** The drive base consists of three M3508 motors controlled via CAN bus.
+    *   `M0`: Right Front
+    *   `M1`: Rear
+    *   `M2`: Left Front
+*   **Inverse Kinematics:** The `DriveBase_SetVelocity()` function translates robot-centric velocity commands (`vx`, `vy`, `omega`) into individual target RPMs for each motor. **Note: The mathematical implementation for the inverse kinematics is currently a work in progress.**
+*   **PID Velocity Control:** Each motor's velocity is managed by a dedicated PID controller (`Core/Src/robot/pid.c`). The `DriveBase_Update()` function periodically reads motor RPM from encoders and adjusts the current sent to the motors to match the target velocity.
 
-- **PID Velocity Control:** Each motor's velocity is managed by a dedicated PID controller (`Core/Src/robot/pid.c`). The `DriveBase_Update()` function, intended to be called periodically, performs the following steps for each motor:
+### 3. Bluetooth Communication (`Core/Src/robot/bluetooth.c`)
 
-  1.  Reads the current velocity (RPM) from the motor's encoder via the CAN bus.
-  2.  Calculates the error between the target velocity and the measured velocity.
-  3.  Uses the PID controller to compute an appropriate current command.
-  4.  Sends the new current command to the motor over the CAN bus.
+The communication layer is designed to be non-blocking and robust.
+*   **Interrupt-Driven UART:** Data reception on `USART1` is handled via interrupts, preventing the main loop from blocking.
+*   **Custom Protocol:** A fixed-width, space-separated ASCII protocol is used for controller state and commands. The full protocol is documented in `docs/Bluetooth.md`.
+*   **State Management:** A `ControllerParam` struct holds the state of all joystick axes, triggers, and buttons. A simple timeout mechanism is used to detect connection loss.
 
-  - The PID gains (`Kp`, `Ki`, `Kd`) are defined in `Core/Inc/robot/constants.h` and can be tuned for optimal performance.
+### 4. Autonomous Control (`Core/Src/robot/autonomous.c`)
 
-- **Motor Interface:** The drivebase communicates with the motors through a high-level CAN protocol wrapper (`Core/Src/robot/can_protocol.c`), which handles the transmission of current commands and the reception of feedback data.
+Handles the execution of autonomous sequences.
+*   **State Machine:** Implements a simple state machine to execute a series of timed movements and actions.
+*   **Host-Driven:** The sequence itself is managed by the host-side Python script, which sends timed commands to the robot. The STM32 firmware simply executes these commands as they are received.
 
-### 4. System Architecture
+## Host Controller Application (`scripts/`)
 
-The firmware is a bare-metal application with a straightforward, event-driven architecture.
+The host-side application provides a graphical user interface for controlling the robot, viewing telemetry, and running autonomous sequences.
 
-- **Main Loop:** The primary loop in `main.c` is responsible for high-level application logic. It periodically calls `Bluetooth_GetController()` to poll for new data and `tft_update()` to render the display buffer.
-- **Asynchronous I/O:** Hardware communication (UART reception, SPI transmission) is handled by interrupts and DMA, ensuring the main loop remains responsive.
-- **System Configuration:** All peripheral configurations (GPIO, UART, SPI, DMA, Timers) are generated by STM32CubeMX and can be reviewed in the `2025-sw-tutorial-v3.1.ioc` file.
+### 1. Main UI (`scripts/controller_ui_windows.py`)
+
+This is the main entry point for the PC application. It provides:
+*   A GUI built with Pygame.
+*   Real-time visualization of gamepad inputs.
+*   Display of telemetry data from the robot (motor RPM, ToF distance, etc.).
+*   Buttons to start and stop the autonomous sequence.
+
+### 2. Autonomous Control (`scripts/autonomous_control.py`)
+
+This module reads the `autonomous_sequence.json` file and translates it into a series of timed commands that are sent to the robot.
+*   **JSON-Based Sequences:** Robot actions are defined in a human-readable JSON file. This allows for easy creation and modification of autonomous routines without recompiling firmware.
+*   **Supported Actions:** The system supports timed movements, pneumatic actions, and sensor-based movements (e.g., "move forward until 30cm from an object").
+*   For detailed instructions on creating sequences, see `scripts/README.md`.
+
+### How to Run the Host Application
+
+1.  **Install Dependencies:**
+    ```bash
+    pip install -r scripts/requirements.txt
+    ```
+2.  **Configure Controller (if needed):**
+    If you are using a controller other than the one defined in `scripts/controller_config.json`, run the configuration script:
+    ```bash
+    python scripts/utils/generate_controller_config.py
+    ```
+3.  **Run the UI:**
+    Connect your gamepad and run the main UI script.
+    ```bash
+    python scripts/controller_ui_windows.py
+    ```
 
 ## Codebase Navigation
 
-- `Core/`: Contains the main application logic.
-  - `Src/main.c`: Application entry point and main loop.
-  - `Src/robot/bluetooth.c`: Implementation of the Bluetooth communication protocol and state management.
-  - `Src/robot/drivebase.c`: Implementation for the 3-wheel omni-drive base, including kinematics and PID control loops.
-  - `Src/robot/pid.c`: A simple PID controller implementation.
-  - `Src/lcd.c`: Implementation of the double-buffered, DMA-based display driver.
-  - `Inc/`: Corresponding header files.
-  - `Inc/robot/constants.h`: Contains tunable parameters for the robot, such as PID gains.
-- `Drivers/`: Contains the ST-provided STM32F4xx HAL and CMSIS libraries.
-- `docs/`: Contains supplementary documentation.
-- `docs/Bluetooth.md`: Detailed specification of the Bluetooth communication protocol — see [docs/Bluetooth.md](docs/Bluetooth.md).
+*   `Core/`: Main STM32 application logic.
+    *   `Inc/`: Header files, including peripheral (`can.h`, `spi.h`) and robot-specific (`control.h`, `drivebase.h`) definitions.
+    *   `Src/`: Source files.
+        *   `main.c`: Application entry point and main loop.
+        *   `robot/`: Contains all high-level robot logic (control, drivebase, bluetooth, etc.).
+*   `Drivers/`: STM32 HAL, CMSIS, and third-party libraries (e.g., `ToF_Library`).
+*   `docs/`: Supplementary documentation, including the detailed `Bluetooth.md` protocol specification.
+*   `scripts/`: Host-side Python application for remote control.
+    *   `utils/`: Helper scripts for controller configuration and port discovery.
+    *   `autonomous_sequence.json`: The editable file defining the autonomous routine.
+*   `2025-sw-tutorial-v3.1.ioc`: STM32CubeMX project file. This can be opened to view and modify hardware configurations.

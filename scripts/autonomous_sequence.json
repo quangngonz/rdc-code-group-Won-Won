@@ -1,0 +1,27 @@
+[
+  {
+    "description": "Extend Pneumatic arm",
+    "controls": null,
+    "duration": 1.0
+  },
+  {
+    "description": "Move forward (offset left to compensate for right curve)",
+    "controls": [0, 80, 0, -10, 0, 0],
+    "duration": 3.6
+  },
+  {
+    "description": "Retract Pneumatic arm",
+    "controls": null,
+    "duration": 1.0
+  },
+  {
+    "description": "Rotate clockwise",
+    "controls": [0, 0, 50, 0, 0, 0],
+    "duration": 0.5
+  },
+  {
+    "description": "Extend Pneumatic arm",
+    "controls": null,
+    "duration": 1.0
+  }
+]

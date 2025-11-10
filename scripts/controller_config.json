@@ -1,0 +1,26 @@
+{
+    "controller_name": "axis 16 button gamepad with hat switch",
+    "timestamp": "2025-11-08 23:40:06",
+    "axes": {
+        "left_stick_x": 0,
+        "left_stick_y": 1,
+        "right_stick_x": 3,
+        "right_stick_y": 4,
+        "left_trigger": null,
+        "right_trigger": null
+    },
+    "buttons": {
+        "a": 0,
+        "b": 1,
+        "x": 3,
+        "y": 4,
+        "lb": 6,
+        "rb": 7,
+        "back": 10,
+        "start": 11,
+        "xbox": 12
+    },
+    "hats": {
+        "dpad": 0
+    }
+}
